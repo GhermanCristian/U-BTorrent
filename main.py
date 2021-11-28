@@ -8,7 +8,8 @@ def main():
     print(scanner.getTorrentName())
     print(scanner.getPieceLength())
     print(scanner.getPieces())
-    print(scanner.getFiles())
+    for file in scanner.getFiles():
+        print(file)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,16 @@
-from bcoding import bdecode  # TODO - add this library to the theoretical part
-from typing import List, Dict, Final
+from bcoding import bdecode  # TODO - add the libraries to the theoretical part
+from typing import List, Final
+from domain.file import File
 
 
 class TorrentMetaInfoScanner:
+    def __loadInfoAboutFile(self, file):
+        path: str = ""
+        for locationPart in file["path"]:
+            path += locationPart + "/"
+        path = path[:-1]  # remove trailing "/"
+        self.__files.append(File(path, file["sha1"], int(file["length"])))
+
     def __decodeTorrentFile(self) -> None:
         with open(self.__torrentFileLocation, "rb") as torrentFile:
             content: dict = bdecode(torrentFile)
@@ -13,12 +21,8 @@ class TorrentMetaInfoScanner:
             self.__torrentName = info["name"]
             self.__pieceLength = int(info["piece length"])
             self.__pieces = info["pieces"]
-            for file in info["files"]:
-                path: str = ""
-                for locationPart in file["path"]:
-                    path += locationPart + "/"
-                path = path[:-1]  # remove trailing "/"
-                self.__files[path] = file  # TODO - create a File class
+            for file in info["files"]:  # this is for the case with multiple files - single files use "length"
+                self.__loadInfoAboutFile(file)
 
     def __init__(self, torrentFileLocation: str):
         self.__torrentFileLocation: Final[str] = torrentFileLocation
@@ -28,7 +32,7 @@ class TorrentMetaInfoScanner:
         self.__torrentName: str = ""
         self.__pieceLength: int = 0
         self.__pieces: str = ""
-        self.__files: Dict = {}
+        self.__files: List[File] = []
 
         self.__decodeTorrentFile()
 
@@ -47,5 +51,9 @@ class TorrentMetaInfoScanner:
     def getPieces(self) -> str:
         return self.__pieces
 
-    def getFiles(self) -> Dict:
+    def getFiles(self) -> List[File]:
         return self.__files
+
+    def getTotalContentSize(self) -> int:
+        # TODO - implement this
+        return 0
