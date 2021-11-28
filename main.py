@@ -11,6 +11,7 @@ def main():
     for file in scanner.getFiles():
         print(file)
     print(scanner.getInfoHash())
+    print(scanner.getTotalContentSize())
 
 
 if __name__ == "__main__":

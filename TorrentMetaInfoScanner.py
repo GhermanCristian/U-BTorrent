@@ -5,38 +5,51 @@ from domain.file import File
 
 
 class TorrentMetaInfoScanner:
+    READ_BINARY: Final[str] = "rb"
+    LOCATION_SEPARATOR: Final[str] = "/"
+    FILE_PATH_KEY: Final[str] = "path"
+    FILE_SHA1_KEY: Final[str] = "sha1"
+    FILE_LENGTH_KEY: Final[str] = "length"
+    ANNOUNCE_KEY: Final[str] = "announce"
+    ANNOUNCE_LIST_KEY: Final[str] = "announce-list"
+    INFO_KEY: Final[str] = "info"
+    TORRENT_NAME_KEY: Final[str] = "name"
+    PIECE_LENGTH_KEY: Final[str] = "piece length"
+    PIECES_KEY: Final[str] = "pieces"
+    FILES_KEY: Final[str] = "files"  # this is for the case with multiple files - single files use "length"
+
+    __announceURL: str
+    __announceURLList: List[str]
+    __torrentName: str
+    __pieceLength: int
+    __pieces: str
+    __files: List[File] = []
+    __infoHash: bytes
+
     def __loadInfoAboutFile(self, file):
         path: str = ""
-        for locationPart in file["path"]:
-            path += locationPart + "/"
+        for locationPart in file[self.FILE_PATH_KEY]:
+            path += locationPart + self.LOCATION_SEPARATOR
         path = path[:-1]  # remove trailing "/"
-        self.__files.append(File(path, file["sha1"], int(file["length"])))
+        self.__files.append(File(path, file[self.FILE_SHA1_KEY], int(file[self.FILE_LENGTH_KEY])))
 
     def __decodeTorrentFile(self) -> None:
-        with open(self.__torrentFileLocation, "rb") as torrentFile:
+        with open(self.__torrentFileLocation, self.READ_BINARY) as torrentFile:
             content: dict = bdecode(torrentFile)
-            self.__announceURL = content["announce"]
-            self.__announceURLList = content["announce-list"]
+            self.__announceURL = content[self.ANNOUNCE_KEY]
+            self.__announceURLList = content[self.ANNOUNCE_LIST_KEY]
 
-            info: dict = content["info"]
+            info: dict = content[self.INFO_KEY]
             self.__infoHash = hashlib.sha1(bencode(info)).digest()
-            self.__torrentName = info["name"]
-            self.__pieceLength = int(info["piece length"])
-            self.__pieces = info["pieces"]
-            for file in info["files"]:  # this is for the case with multiple files - single files use "length"
+            self.__torrentName = info[self.TORRENT_NAME_KEY]
+            self.__pieceLength = int(info[self.PIECE_LENGTH_KEY])
+            self.__pieces = info[self.PIECES_KEY]
+            for file in info[self.FILES_KEY]:
+                # TODO - handle the case where there is just 1 file
                 self.__loadInfoAboutFile(file)
 
     def __init__(self, torrentFileLocation: str):
         self.__torrentFileLocation: Final[str] = torrentFileLocation
-
-        self.__announceURL: str = ""
-        self.__announceURLList: List[str] = []
-        self.__torrentName: str = ""
-        self.__pieceLength: int = 0
-        self.__pieces: str = ""
-        self.__files: List[File] = []
-        self.__infoHash: str = ""
-
         self.__decodeTorrentFile()
 
     def getAnnounceURL(self) -> str:
@@ -57,9 +70,8 @@ class TorrentMetaInfoScanner:
     def getFiles(self) -> List[File]:
         return self.__files
 
-    def getInfoHash(self) -> str:
+    def getInfoHash(self) -> bytes:
         return self.__infoHash
 
     def getTotalContentSize(self) -> int:
-        # TODO - implement this
-        return 0
+        return sum(file.length for file in self.__files)
