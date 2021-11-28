@@ -1,4 +1,5 @@
-from TorrentMetaInfoScanner import TorrentMetaInfoScanner
+from torrentMetaInfoScanner import TorrentMetaInfoScanner
+from trackerConnection import TrackerConnection
 
 
 def main():
@@ -12,6 +13,8 @@ def main():
         print(file)
     print(scanner.getInfoHash())
     print(scanner.getTotalContentSize())
+
+    TrackerConnection().getPeerList(scanner.getAnnounceURL(), scanner.getInfoHash(), scanner.getTotalContentSize())
 
 
 if __name__ == "__main__":
