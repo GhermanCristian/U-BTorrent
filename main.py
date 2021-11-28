@@ -10,6 +10,7 @@ def main():
     print(scanner.getPieces())
     for file in scanner.getFiles():
         print(file)
+    print(scanner.getInfoHash())
 
 
 if __name__ == "__main__":

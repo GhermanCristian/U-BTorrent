@@ -1,4 +1,5 @@
-from bcoding import bdecode  # TODO - add the libraries to the theoretical part
+import hashlib
+from bcoding import bdecode, bencode  # TODO - add the libraries to the theoretical part
 from typing import List, Final
 from domain.file import File
 
@@ -18,6 +19,7 @@ class TorrentMetaInfoScanner:
             self.__announceURLList = content["announce-list"]
 
             info: dict = content["info"]
+            self.__infoHash = hashlib.sha1(bencode(info)).digest()
             self.__torrentName = info["name"]
             self.__pieceLength = int(info["piece length"])
             self.__pieces = info["pieces"]
@@ -33,6 +35,7 @@ class TorrentMetaInfoScanner:
         self.__pieceLength: int = 0
         self.__pieces: str = ""
         self.__files: List[File] = []
+        self.__infoHash: str = ""
 
         self.__decodeTorrentFile()
 
@@ -53,6 +56,9 @@ class TorrentMetaInfoScanner:
 
     def getFiles(self) -> List[File]:
         return self.__files
+
+    def getInfoHash(self) -> str:
+        return self.__infoHash
 
     def getTotalContentSize(self) -> int:
         # TODO - implement this
