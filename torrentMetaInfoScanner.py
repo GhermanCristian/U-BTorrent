@@ -1,5 +1,5 @@
 import hashlib
-from bcoding import bdecode, bencode  # TODO - add the libraries to the theoretical part
+from bencode3 import bdecode, bencode  # TODO - add the libraries to the theoretical part
 from typing import List, Final
 from domain.file import File
 
@@ -35,7 +35,7 @@ class TorrentMetaInfoScanner:
 
     def __decodeTorrentFile(self) -> None:
         with open(self.__torrentFileLocation, self.READ_BINARY) as torrentFile:
-            content: dict = bdecode(torrentFile)
+            content: dict = bdecode(torrentFile.read())
             self.__announceURL = content[self.ANNOUNCE_KEY]
             self.__announceURLList = content[self.ANNOUNCE_LIST_KEY]
 
