@@ -1,4 +1,4 @@
-from typing import List, Final
+from typing import List, Final, Tuple
 import requests
 from bencode3 import bdecode
 from requests import Response
@@ -19,7 +19,7 @@ class TrackerConnection:
     The decimal number has to be a multiple of 6 (4 bytes for each IP, 2 for each port)
     @:return a list of Peer objects, extracted from the input
     """
-    def __computePeers(self, peersPart: str) -> List[Peer]:
+    def computePeers(self, peersPart: str) -> List[Peer]:
         peerAddressList: List[Peer] = []
         currentIndex: int = len(self.PEERS_PART_HEADER)  # skip the "5:peers" part
         peersByteCount: int = 0  # the number of bytes used to represent peer addresses
@@ -40,15 +40,13 @@ class TrackerConnection:
 
     """
     Processes the tracker response
-    @:param response - the response to the GET request made to the tracker
+    @:param responseText - the response to the GET request made to the tracker
     """
-    def __onSuccessfulConnection(self, response: Response) -> None:
-        peersPartStartingPosition: int = response.text.find(self.PEERS_PART_HEADER)
-        peersPart: str = response.text[peersPartStartingPosition: -1]
-        nonPeersPart: dict = bdecode(str.encode(response.text.replace(peersPart, "")))
-        print(nonPeersPart)
-        for peer in self.__computePeers(peersPart):
-            print(peer)
+    def onSuccessfulConnection(self, responseText: str) -> Tuple[dict, List[Peer]]:
+        peersPartStartingPosition: int = responseText.find(self.PEERS_PART_HEADER)
+        peersPart: str = responseText[peersPartStartingPosition: -1]
+        nonPeersPart: dict = bdecode(str.encode(responseText.replace(peersPart, "")))
+        return nonPeersPart, self.computePeers(peersPart)
 
     """
     Computes the peer list according to the torrent meta info file
@@ -71,7 +69,10 @@ class TrackerConnection:
             try:
                 response: Response = requests.get(announceURL, params=payload, timeout=self.REQUEST_ATTEMPT_TIMEOUT)
                 if response.status_code == 200:
-                    self.__onSuccessfulConnection(response)
+                    nonPeersPart, peerList = self.onSuccessfulConnection(response.text)
+                    print(nonPeersPart)
+                    for peer in peerList:
+                        print(peer)
                     return
             except Exception as e:
                 print("Error - ", e)

@@ -17,3 +17,6 @@ class Peer:
         thirdOctet = (self.__IP // 256 ** 1) % 256
         fourthOctet = self.__IP % 256
         return f'{firstOctet}.{secondOctet}.{thirdOctet}.{fourthOctet}:{self.__port}'
+
+    def __eq__(self, other):
+        return isinstance(other, Peer) and self.__IP == other.IP and self.__port == other.port
