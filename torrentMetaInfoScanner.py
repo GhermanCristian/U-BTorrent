@@ -5,6 +5,7 @@ from domain.file import File
 
 
 class TorrentMetaInfoScanner:
+    # TODO - add documentation
     READ_BINARY: Final[str] = "rb"
     LOCATION_SEPARATOR: Final[str] = "/"
     FILE_PATH_KEY: Final[str] = "path"
