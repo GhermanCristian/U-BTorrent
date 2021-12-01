@@ -19,16 +19,17 @@ class TorrentMetaInfoScanner:
     PIECES_KEY: Final[str] = "pieces"
     FILES_KEY: Final[str] = "files"  # this is for the case with multiple files - single files use "length"
 
-    __announceURL: str
-    __announceURLList: List[str]
-    __torrentName: str
-    __pieceLength: int
-    __pieces: str
-    __files: List[File] = []
-    __infoHash: bytes
-
     def __init__(self, torrentFileLocation: str):
         self.__torrentFileLocation: Final[str] = torrentFileLocation
+
+        self.__announceURL: str
+        self.__announceURLList: List[str]
+        self.__torrentName: str
+        self.__pieceLength: int
+        self.__pieces: bytes
+        self.__files: List[File] = []
+        self.__infoHash: bytes
+
         self.__decodeTorrentFile()
 
     def __loadInfoAboutFile(self, file):
@@ -65,7 +66,7 @@ class TorrentMetaInfoScanner:
     def getPieceLength(self) -> int:
         return self.__pieceLength
 
-    def getPieces(self) -> str:
+    def getPieces(self) -> bytes:
         return self.__pieces
 
     def getFiles(self) -> List[File]:

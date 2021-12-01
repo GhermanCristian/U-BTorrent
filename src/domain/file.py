@@ -18,3 +18,6 @@ class File:
 
     def __str__(self) -> str:
         return self.__path + "; sha1=" + self.__sha1 + "; size=" + str(self.__length) + "B"
+
+    def __eq__(self, other):
+        return isinstance(other, File) and self.__path == other.path and self.__sha1 == other.sha1 and self.__length == other.length
