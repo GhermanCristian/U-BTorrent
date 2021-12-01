@@ -27,6 +27,10 @@ class TorrentMetaInfoScanner:
     __files: List[File] = []
     __infoHash: bytes
 
+    def __init__(self, torrentFileLocation: str):
+        self.__torrentFileLocation: Final[str] = torrentFileLocation
+        self.__decodeTorrentFile()
+
     def __loadInfoAboutFile(self, file):
         path: str = ""
         for locationPart in file[self.FILE_PATH_KEY]:
@@ -48,10 +52,6 @@ class TorrentMetaInfoScanner:
             for file in info[self.FILES_KEY]:
                 # TODO - handle the case where there is just 1 file
                 self.__loadInfoAboutFile(file)
-
-    def __init__(self, torrentFileLocation: str):
-        self.__torrentFileLocation: Final[str] = torrentFileLocation
-        self.__decodeTorrentFile()
 
     def getAnnounceURL(self) -> str:
         return self.__announceURL
