@@ -6,45 +6,56 @@ from domain.peer import Peer
 
 
 class TrackerConnection:
-    # TODO - add documentation
     PORT: Final[int] = 6881
     PEER_ID: Final[str] = "ABCDEFGHIJKLMNOPQRST"
     REQUEST_ATTEMPT_TIMEOUT: Final[int] = 30  # seconds
+    PEERS_PART_HEADER: Final[str] = "5:peers"
+    PEER_SIZE: Final[int] = 6  # bytes
 
+    """
+    Determines the list of peers from the tracker response
+    @:param peersPart - a string containing some headers and the extended ASCII-encoded values representing the IP:port of the peers
+    The header starts with "5:peers" - part of the bencode standard, then a decimal number = the number of bytes needed for the IPs and ports, which is followed by a colon.
+    The decimal number has to be a multiple of 6 (4 bytes for each IP, 2 for each port)
+    @:return a list of Peer objects, extracted from the input
+    """
     def __computePeers(self, peersPart: str) -> List[Peer]:
         peerAddressList: List[Peer] = []
-        currentIndex: int = 7  # skip the "5:peers" part
-        peersSize: int = 0  # the number of characters which represent peer addresses; it has to be a multiple of 6 (4 for the IP, 2 for the port)
+        currentIndex: int = len(self.PEERS_PART_HEADER)  # skip the "5:peers" part
+        peersByteCount: int = 0  # the number of bytes used to represent peer addresses
 
         while peersPart[currentIndex].isdigit():
-            peersSize = peersSize * 10 + int(peersPart[currentIndex])
+            peersByteCount = peersByteCount * 10 + int(peersPart[currentIndex])
             currentIndex += 1
-
         currentIndex += 1  # skip the ":"
-        assert peersSize % 6 == 0
-        for _ in range(0, peersSize // 6):
+        assert peersByteCount % self.PEER_SIZE == 0
+        
+        for _ in range(0, peersByteCount // self.PEER_SIZE):
             currentIP = ord(peersPart[currentIndex]) * 256**3 + ord(peersPart[currentIndex + 1]) * 256**2 + ord(peersPart[currentIndex + 2]) * 256 + ord(peersPart[currentIndex + 3])
             currentPort = ord(peersPart[currentIndex + 4]) * 256 + ord(peersPart[currentIndex + 5])
             peerAddressList.append(Peer(currentIP, currentPort))
-            currentIndex += 6
+            currentIndex += self.PEER_SIZE
 
         return peerAddressList
 
-    def __processResponse(self, response: str) -> [str, dict]:
-        peersPosition: int = response.find("5:peers")
-        peersPart: str = response[peersPosition: -1]
-        nonPeersPart: dict = bdecode(str.encode(response.replace(peersPart, "")))
-        return [peersPart, nonPeersPart]
-
+    """
+    Processes the tracker response
+    @:param response - the response to the GET request made to the tracker
+    """
     def __onSuccessfulConnection(self, response: Response) -> None:
-        peersPart: str
-        nonPeersPart: dict
-        [peersPart, nonPeersPart] = self.__processResponse(response.text)
-        print(peersPart)
+        peersPartStartingPosition: int = response.text.find(self.PEERS_PART_HEADER)
+        peersPart: str = response.text[peersPartStartingPosition: -1]
+        nonPeersPart: dict = bdecode(str.encode(response.text.replace(peersPart, "")))
         print(nonPeersPart)
         for peer in self.__computePeers(peersPart):
             print(peer)
 
+    """
+    Computes the peer list according to the torrent meta info file
+    @:param announceURL - the URL of the tracker
+    @:param infoHash - hash value of the "info" section in the torrent meta info file
+    @:param totalSize - total size of the content
+    """
     def getPeerList(self, announceURL, infoHash, totalSize) -> None:
         payload = {
             "info_hash": infoHash,

@@ -1,11 +1,10 @@
 import hashlib
-from bencode3 import bdecode, bencode  # TODO - add the libraries to the theoretical part
+from bencode3 import bdecode, bencode
 from typing import List, Final
 from domain.file import File
 
 
 class TorrentMetaInfoScanner:
-    # TODO - add documentation
     READ_BINARY: Final[str] = "rb"
     LOCATION_SEPARATOR: Final[str] = "/"
     FILE_PATH_KEY: Final[str] = "path"
@@ -32,13 +31,19 @@ class TorrentMetaInfoScanner:
 
         self.__decodeTorrentFile()
 
-    def __loadInfoAboutFile(self, file):
+    """
+    @:param file - dictionary which contains information about a file
+    """
+    def __loadInfoAboutFile(self, file: dict) -> None:
         path: str = ""
         for locationPart in file[self.FILE_PATH_KEY]:
             path += locationPart + self.LOCATION_SEPARATOR
         path = path[:-1]  # remove trailing "/"
         self.__files.append(File(path, file[self.FILE_SHA1_KEY], int(file[self.FILE_LENGTH_KEY])))
 
+    """
+    Decodes a torrent meta info file, and loads in memory all the necessary fields
+    """
     def __decodeTorrentFile(self) -> None:
         with open(self.__torrentFileLocation, self.READ_BINARY) as torrentFile:
             content: dict = bdecode(torrentFile.read())
