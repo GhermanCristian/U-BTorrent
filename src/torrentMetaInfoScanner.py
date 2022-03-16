@@ -8,7 +8,6 @@ class TorrentMetaInfoScanner:
     READ_BINARY: Final[str] = "rb"
     LOCATION_SEPARATOR: Final[str] = "/"
     FILE_PATH_KEY: Final[str] = "path"
-    FILE_SHA1_KEY: Final[str] = "sha1"
     FILE_LENGTH_KEY: Final[str] = "length"
     ANNOUNCE_KEY: Final[str] = "announce"
     ANNOUNCE_LIST_KEY: Final[str] = "announce-list"
@@ -39,7 +38,7 @@ class TorrentMetaInfoScanner:
         for locationPart in file[self.FILE_PATH_KEY]:
             path += locationPart + self.LOCATION_SEPARATOR
         path = path[:-1]  # remove trailing "/"
-        self.__files.append(File(path, file[self.FILE_SHA1_KEY], int(file[self.FILE_LENGTH_KEY])))
+        self.__files.append(File(path, int(file[self.FILE_LENGTH_KEY])))
 
     """
     Decodes a torrent meta info file, and loads in memory all the necessary fields
