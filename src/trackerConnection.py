@@ -9,7 +9,7 @@ class TrackerConnection:
     PORT: Final[int] = 6881
     PEER_ID: Final[str] = "ABCDEFGHIJKLMNOPQRST"
     REQUEST_ATTEMPT_TIMEOUT: Final[int] = 30  # seconds
-    PEERS_PART_HEADER: Final[str] = "5:peers"
+    PEERS_PART_HEADER: Final[bytes] = b"5:peers"
     PEER_SIZE: Final[int] = 6  # bytes
 
     """
@@ -19,20 +19,20 @@ class TrackerConnection:
     The decimal number has to be a multiple of 6 (4 bytes for each IP, 2 for each port)
     @:return a list of Peer objects, extracted from the input
     """
-    def computePeers(self, peersPart: str) -> List[Peer]:
+    def computePeers(self, peersPart: bytearray) -> List[Peer]:
         peerAddressList: List[Peer] = []
         currentIndex: int = len(self.PEERS_PART_HEADER)  # skip the "5:peers" part
         peersByteCount: int = 0  # the number of bytes used to represent peer addresses
 
-        while peersPart[currentIndex].isdigit():
-            peersByteCount = peersByteCount * 10 + int(peersPart[currentIndex])
+        while 48 + 0 <= peersPart[currentIndex] <= 48 + 9:
+            peersByteCount = peersByteCount * 10 + peersPart[currentIndex] - 48
             currentIndex += 1
         currentIndex += 1  # skip the ":"
         assert peersByteCount % self.PEER_SIZE == 0
         
         for _ in range(0, peersByteCount // self.PEER_SIZE):
-            currentIP = ord(peersPart[currentIndex]) * 256**3 + ord(peersPart[currentIndex + 1]) * 256**2 + ord(peersPart[currentIndex + 2]) * 256 + ord(peersPart[currentIndex + 3])
-            currentPort = ord(peersPart[currentIndex + 4]) * 256 + ord(peersPart[currentIndex + 5])
+            currentIP = peersPart[currentIndex] * 256**3 + peersPart[currentIndex + 1] * 256**2 + peersPart[currentIndex + 2] * 256 + peersPart[currentIndex + 3]
+            currentPort = peersPart[currentIndex + 4] * 256 + peersPart[currentIndex + 5]
             peerAddressList.append(Peer(currentIP, currentPort))
             currentIndex += self.PEER_SIZE
 
@@ -42,10 +42,11 @@ class TrackerConnection:
     Processes the tracker response
     @:param responseText - the response to the GET request made to the tracker
     """
-    def onSuccessfulConnection(self, responseText: str) -> Tuple[dict, List[Peer]]:
-        peersPartStartingPosition: int = responseText.find(self.PEERS_PART_HEADER)
-        peersPart: str = responseText[peersPartStartingPosition: -1]
-        nonPeersPart: dict = bdecode(str.encode(responseText.replace(peersPart, "")))
+    def onSuccessfulConnection(self, responseBytes: bytes) -> Tuple[dict, List[Peer]]:
+        responseAsByteArray: bytearray = bytearray(responseBytes)
+        peersPartStartingPosition: int = responseAsByteArray.find(self.PEERS_PART_HEADER)
+        peersPart: bytearray = responseAsByteArray[peersPartStartingPosition: -1]
+        nonPeersPart: dict = bdecode(responseAsByteArray.replace(peersPart, b""))
         return nonPeersPart, self.computePeers(peersPart)
 
     """
@@ -70,7 +71,7 @@ class TrackerConnection:
             try:
                 response: Response = requests.get(announceURL, params=payload, timeout=self.REQUEST_ATTEMPT_TIMEOUT)
                 if response.status_code == 200:
-                    nonPeersPart, peerList = self.onSuccessfulConnection(response.text)
+                    nonPeersPart, peerList = self.onSuccessfulConnection(response.content)
                     print(nonPeersPart)
                     for peer in peerList:
                         print(peer)
