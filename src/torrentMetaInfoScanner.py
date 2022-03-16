@@ -9,6 +9,7 @@ class TorrentMetaInfoScanner:
     LOCATION_SEPARATOR: Final[str] = "/"
     FILE_PATH_KEY: Final[str] = "path"
     FILE_LENGTH_KEY: Final[str] = "length"
+    SINGLE_FILE_MODE_LENGTH_KEY: Final[str] = "length"
     ANNOUNCE_KEY: Final[str] = "announce"
     ANNOUNCE_LIST_KEY: Final[str] = "announce-list"
     INFO_KEY: Final[str] = "info"
@@ -41,6 +42,14 @@ class TorrentMetaInfoScanner:
         self.__files.append(File(path, int(file[self.FILE_LENGTH_KEY])))
 
     """
+    Determines if the current torrent contains multiple files or just one
+    @:param info - dictionary with information about the torrent content
+    @:return true, if the torrent contains muliple files; false, otherwise
+    """
+    def __multipleFileMode(self, info: dict) -> bool:
+        return self.FILES_KEY in info.keys()
+
+    """
     Decodes a torrent meta info file, and loads in memory all the necessary fields
     """
     def __decodeTorrentFile(self) -> None:
@@ -51,12 +60,15 @@ class TorrentMetaInfoScanner:
 
             info: dict = content[self.INFO_KEY]
             self.__infoHash = hashlib.sha1(bencode(info)).digest()
+            # in single-file mode, this becomes the name of the file itself
             self.__torrentName = info[self.TORRENT_NAME_KEY]
             self.__pieceLength = int(info[self.PIECE_LENGTH_KEY])
             self.__pieces = info[self.PIECES_KEY]
-            for file in info[self.FILES_KEY]:
-                # TODO - handle the case where there is just 1 file
-                self.__loadInfoAboutFile(file)
+            if self.__multipleFileMode(info):
+                for file in info[self.FILES_KEY]:
+                    self.__loadInfoAboutFile(file)
+            else:
+                self.__files.append(File(self.__torrentName, info[self.SINGLE_FILE_MODE_LENGTH_KEY]))
 
     def getAnnounceURL(self) -> str:
         return self.__announceURL
