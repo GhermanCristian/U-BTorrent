@@ -61,7 +61,8 @@ class TrackerConnection:
             "port": self.PORT,
             "uploaded": "0",
             "downloaded": "0",
-            "left": totalSize
+            "left": totalSize,
+            "compact": 1
         }
 
         while True:
