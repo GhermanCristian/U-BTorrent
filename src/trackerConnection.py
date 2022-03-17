@@ -14,7 +14,7 @@ class TrackerConnection:
 
     """
     Determines the list of peers from the tracker response
-    @:param peersPart - a string containing some headers and the extended ASCII-encoded values representing the IP:port of the peers
+    @:param peersPart - a bytearray containing some headers and the extended ASCII-encoded values representing the IP:port of the peers
     The header starts with "5:peers" - part of the bencode standard, then a decimal number = the number of bytes needed for the IPs and ports, which is followed by a colon.
     The decimal number has to be a multiple of 6 (4 bytes for each IP, 2 for each port)
     @:return a list of Peer objects, extracted from the input
@@ -28,7 +28,7 @@ class TrackerConnection:
             peersByteCount = peersByteCount * 10 + peersPart[currentIndex] - 48
             currentIndex += 1
         currentIndex += 1  # skip the ":"
-        assert peersByteCount % self.PEER_SIZE == 0
+        assert peersByteCount % self.PEER_SIZE == 0, "The number of bytes for the peers IPs and ports should be a multiple of {0}".format(self.PEER_SIZE)
         
         for _ in range(0, peersByteCount // self.PEER_SIZE):
             currentIP = peersPart[currentIndex] * 256**3 + peersPart[currentIndex + 1] * 256**2 + peersPart[currentIndex + 2] * 256 + peersPart[currentIndex + 3]
@@ -40,7 +40,7 @@ class TrackerConnection:
 
     """
     Processes the tracker response
-    @:param responseText - the response to the GET request made to the tracker
+    @:param responseBytes - the response to the GET request made to the tracker
     """
     def onSuccessfulConnection(self, responseBytes: bytes) -> Tuple[dict, List[Peer]]:
         responseAsByteArray: bytearray = bytearray(responseBytes)
@@ -55,7 +55,7 @@ class TrackerConnection:
     @:param infoHash - hash value of the "info" section in the torrent meta info file
     @:param totalSize - total size of the content
     """
-    def getPeerList(self, announceURL, infoHash, totalSize) -> None:
+    def getPeerList(self, announceURL: str, infoHash: bytes, totalSize: int) -> None:
         payload = {
             "info_hash": infoHash,
             "peer_id": self.PEER_ID,
