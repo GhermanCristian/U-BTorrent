@@ -6,7 +6,8 @@ from domain.peer import Peer
 
 
 class TrackerConnection:
-    PORT: Final[int] = 6881
+    FIRST_AVAILABLE_PORT: Final[int] = 6881
+    LAST_AVAILABLE_PORT: Final[int] = 6889
     PEER_ID: Final[str] = "ABCDEFGHIJKLMNOPQRST"
     REQUEST_ATTEMPT_TIMEOUT: Final[int] = 30  # seconds
     PEERS_PART_HEADER: Final[bytes] = b"5:peers"
@@ -55,26 +56,30 @@ class TrackerConnection:
     @:param infoHash - hash value of the "info" section in the torrent meta info file
     @:param totalSize - total size of the content
     """
-    def getPeerList(self, announceURL: str, infoHash: bytes, totalSize: int) -> None:
+    def getPeerList(self, announceURL: str, infoHash: bytes, totalSize: int) -> List[Peer]:
+        # TODO - extract these values into constants
         payload = {
             "info_hash": infoHash,
             "peer_id": self.PEER_ID,
-            "port": self.PORT,
+            "port": self.FIRST_AVAILABLE_PORT,
             "uploaded": "0",
             "downloaded": "0",
             "left": totalSize,
             "compact": 1
         }
 
-        while True:
-            print("Start")
-            try:
-                response: Response = requests.get(announceURL, params=payload, timeout=self.REQUEST_ATTEMPT_TIMEOUT)
-                if response.status_code == 200:
-                    nonPeersPart, peerList = self.onSuccessfulConnection(response.content)
-                    print(nonPeersPart)
-                    for peer in peerList:
-                        print(peer)
-                    return
-            except Exception as e:
-                print("Error - ", e)
+        while payload["port"] <= self.LAST_AVAILABLE_PORT:
+            for attempt in range(4):
+                print(f"""Trying to connect to tracker on port {payload["port"]}, attempt {attempt + 1}/{3}""")
+                try:
+                    response: Response = requests.get(announceURL, params=payload, timeout=self.REQUEST_ATTEMPT_TIMEOUT)
+                    if response.status_code == 200:
+                        nonPeersPart, peerList = self.onSuccessfulConnection(response.content)
+                        # nonPeersPart is not used right now, but it probably will be in the future
+                        return peerList
+                except Exception as e:
+                    print("Error - ", e)
+            payload["port"] += 1  # try the next port
+
+        print("Could not connect to the tracker")
+        return []
