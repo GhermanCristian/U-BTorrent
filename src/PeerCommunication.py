@@ -29,6 +29,7 @@ class PeerCommunication:
         clientSocket.sendall(self.__createHandshakeMessage())
         buffer = clientSocket.recv(2048)
         print("response = " + str(buffer))
+        clientSocket.close()
 
     def start(self):
         print(self.__createHandshakeMessage())
