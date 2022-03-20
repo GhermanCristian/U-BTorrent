@@ -1,8 +1,8 @@
-import random
-import socket
+from asyncio import Task
 from typing import List, Final
 from domain.peer import Peer
 from domain.validator.handshakeResponseValidator import HandshakeResponseValidator
+import asyncio
 
 
 class PeerCommunication:
@@ -23,22 +23,41 @@ class PeerCommunication:
         return self.CURRENT_PROTOCOL_LENGTH + self.CURRENT_PROTOCOL + self.RESERVED_HANDSHAKE_MESSAGE_BYTES + \
                self.__infoHash + self.__peerID.encode()
 
-    def __getHandshakeResponseFromPeer(self, otherPeer: Peer) -> bytes:
-        clientSocket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        clientSocket.settimeout(60)
-        clientSocket.connect((otherPeer.getIPRepresentedAsString(), otherPeer.port))
-        clientSocket.sendall(self.__createHandshakeMessage())
-        handshakeResponse: bytes = clientSocket.recv(2048)
-        clientSocket.close()
+    async def __getHandshakeResponseFromPeer(self, otherPeer: Peer) -> bytes:
+        # TODO - find a way to implement timeouts
+        try:
+            # TODO - several attempts
+            reader, writer = await asyncio.open_connection(otherPeer.getIPRepresentedAsString(), otherPeer.port)
+        except Exception as e:
+            return b""  # an invalid handshake
+
+        writer.write(self.__createHandshakeMessage())
+        await writer.drain()
+        handshakeResponse: bytes = await reader.read(2048)
+        writer.close()
+        await writer.wait_closed()
+
         return handshakeResponse
 
-    def __connectToPeer(self, otherPeer: Peer) -> None:
+    async def __connectToPeer(self, otherPeer: Peer) -> None:
         print(otherPeer)
-        handshakeResponse: bytes = self.__getHandshakeResponseFromPeer(otherPeer)
-        print(handshakeResponse)
-        assert self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse), "Invalid handshake response. Aborting"
+        try:
+            handshakeResponse: bytes = await self.__getHandshakeResponseFromPeer(otherPeer)
+        except Exception as e:
+            return
 
-    def start(self):
+        if self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse):
+            print("OK")
+        else:
+            print("Invalid handshake response. Aborting")
+
+    async def __connectToPeers(self) -> None:
+        connectTasks: List[Task] = []
+        for peer in self.__peerList:
+            if peer != self.HOST:
+                connectTasks.append(asyncio.create_task(self.__connectToPeer(peer)))
+        await asyncio.gather(*connectTasks)
+
+    def start(self) -> None:
         print(self.__createHandshakeMessage())
-        # for now, just a POC - connecting to one peer, no async yet
-        self.__connectToPeer(random.choice(self.__peerList))
+        asyncio.run(self.__connectToPeers())
