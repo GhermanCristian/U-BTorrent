@@ -2,6 +2,7 @@ import random
 import socket
 from typing import List, Final
 from domain.peer import Peer
+from domain.validator.handshakeResponseValidator import HandshakeResponseValidator
 
 
 class PeerCommunication:
@@ -16,15 +17,11 @@ class PeerCommunication:
         self.__peerList: List[Peer] = peerList
         self.__infoHash: bytes = infoHash
         self.__peerID: str = peerID
+        self.__handshakeResponseValidator: HandshakeResponseValidator = HandshakeResponseValidator(self.__infoHash, self.CURRENT_PROTOCOL)
 
     def __createHandshakeMessage(self) -> bytes:
         return self.CURRENT_PROTOCOL_LENGTH + self.CURRENT_PROTOCOL + self.RESERVED_HANDSHAKE_MESSAGE_BYTES + \
                self.__infoHash + self.__peerID.encode()
-
-    def __checkValidHandshakeResponse(self, handshakeResponse: bytes) -> bool:
-        # can't use CURRENT_PROTOCOL_LENGTH because it's in byte form (\x13), whereas handshakeResponse[0] is in dec form (19)
-        return len(handshakeResponse) >= 68 and handshakeResponse[0] == len(self.CURRENT_PROTOCOL) and \
-               handshakeResponse[1:20] == self.CURRENT_PROTOCOL and handshakeResponse[28:48] == self.__infoHash
 
     def __getHandshakeResponseFromPeer(self, otherPeer: Peer) -> bytes:
         clientSocket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -39,7 +36,7 @@ class PeerCommunication:
         print(otherPeer)
         handshakeResponse: bytes = self.__getHandshakeResponseFromPeer(otherPeer)
         print(handshakeResponse)
-        assert self.__checkValidHandshakeResponse(handshakeResponse), "Invalid handshake response. Aborting"
+        assert self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse), "Invalid handshake response. Aborting"
 
     def start(self):
         print(self.__createHandshakeMessage())
