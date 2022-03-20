@@ -1,9 +1,10 @@
+from typing import List
+from domain.peer import Peer
 from torrentMetaInfoScanner import TorrentMetaInfoScanner
 from trackerConnection import TrackerConnection
 
 
-def main():
-    scanner = TorrentMetaInfoScanner("Resources/NBALOGO_archive.torrent")
+def printScannerInformation(scanner: TorrentMetaInfoScanner) -> None:
     print(scanner.getAnnounceURL())
     print(scanner.getAnnounceURLList())
     print(scanner.getTorrentName())
@@ -14,7 +15,17 @@ def main():
     print(scanner.getInfoHash())
     print(scanner.getTotalContentSize())
 
-    TrackerConnection().getPeerList(scanner.getAnnounceURL(), scanner.getInfoHash(), scanner.getTotalContentSize())
+
+def printPeerList(scanner: TorrentMetaInfoScanner) -> None:
+    peerList: List[Peer] = TrackerConnection().getPeerList(scanner.getAnnounceURL(), scanner.getInfoHash(), scanner.getTotalContentSize())
+    for peer in peerList:
+        print(peer)
+
+
+def main():
+    scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner("Resources/NBALOGO_archive.torrent")
+    printScannerInformation(scanner)
+    printPeerList(scanner)
 
 
 if __name__ == "__main__":
