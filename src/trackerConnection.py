@@ -69,7 +69,7 @@ class TrackerConnection:
         }
 
         while payload["port"] <= self.LAST_AVAILABLE_PORT:
-            for attempt in range(4):
+            for attempt in range(3):
                 print(f"""Trying to connect to tracker on port {payload["port"]}, attempt {attempt + 1}/{3}""")
                 try:
                     response: Response = requests.get(announceURL, params=payload, timeout=self.REQUEST_ATTEMPT_TIMEOUT)

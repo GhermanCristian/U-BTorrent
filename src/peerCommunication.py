@@ -1,4 +1,4 @@
-from asyncio import Task
+from asyncio import Task, StreamReader, StreamWriter
 from typing import List, Final
 from domain.peer import Peer
 from domain.validator.handshakeResponseValidator import HandshakeResponseValidator
@@ -23,14 +23,7 @@ class PeerCommunication:
         return self.CURRENT_PROTOCOL_LENGTH + self.CURRENT_PROTOCOL + self.RESERVED_HANDSHAKE_MESSAGE_BYTES + \
                self.__infoHash + self.__peerID.encode()
 
-    async def __getHandshakeResponseFromPeer(self, otherPeer: Peer) -> bytes:
-        # TODO - find a way to implement timeouts
-        try:
-            # TODO - several attempts
-            reader, writer = await asyncio.open_connection(otherPeer.getIPRepresentedAsString(), otherPeer.port)
-        except Exception as e:
-            return b""  # an invalid handshake
-
+    async def __sendAndReceiveHandshake(self, reader: StreamReader, writer: StreamWriter) -> bytes:
         writer.write(self.__createHandshakeMessage())
         await writer.drain()
         handshakeResponse: bytes = await reader.read(2048)
@@ -39,17 +32,22 @@ class PeerCommunication:
 
         return handshakeResponse
 
-    async def __connectToPeer(self, otherPeer: Peer) -> None:
-        print(otherPeer)
-        try:
-            handshakeResponse: bytes = await self.__getHandshakeResponseFromPeer(otherPeer)
-        except Exception as e:
-            return
+    async def __getHandshakeResponseFromPeer(self, otherPeer: Peer) -> bytes:
+        for attempt in range(3):
+            try:
+                reader, writer = await asyncio.open_connection(otherPeer.getIPRepresentedAsString(), otherPeer.port)
+                return await self.__sendAndReceiveHandshake(reader, writer)
+            except:
+                pass
 
+        return b""  # an invalid handshake
+
+    async def __connectToPeer(self, otherPeer: Peer) -> None:
+        handshakeResponse: bytes = await self.__getHandshakeResponseFromPeer(otherPeer)
         if self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse):
-            print("OK")
+            print(str(otherPeer) + " - OK")
         else:
-            print("Invalid handshake response. Aborting")
+            print(str(otherPeer) + " - Invalid handshake response. Aborting")
 
     async def __connectToPeers(self) -> None:
         connectTasks: List[Task] = []
