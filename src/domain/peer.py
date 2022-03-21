@@ -1,5 +1,6 @@
 class Peer:
     def __init__(self, IP: int, port: int):
+        # IP + port uniquely determine the peer (for example, __eq__ won't check choking / interested, same for __hash__)
         self.__IP: int = IP
         self.__port: int = port
         self.__amChokingIt: bool = True
@@ -44,5 +45,7 @@ class Peer:
             amInterestedInIt={self.__amInterestedInIt}; isInterestedInMe={self.__isInterestedInMe};"""
 
     def __eq__(self, other):
-        # no need to check for choking / interest; the IP + port should uniquely determine the peer
         return isinstance(other, Peer) and self.__IP == other.IP and self.__port == other.port
+
+    def __hash__(self):
+        return hash((self.__IP, self.__port))
