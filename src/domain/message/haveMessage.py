@@ -1,23 +1,20 @@
 from typing import Final
+import utils
+from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 
 
-class HaveMessage:
+class HaveMessage(MessageWithLengthAndID):
     MESSAGE_ID: Final[int] = 4
+    LENGTH_PREFIX: Final[int] = 5  # messageID = 1B; pieceIndex = 4B
 
     def __init__(self, pieceIndex: int):
         # pieceIndex is 0-indexed
-        self.__messageID: bytes = chr(self.MESSAGE_ID).encode()
-        self.__pieceIndex: bytes = chr(pieceIndex).encode()
+        super().__init__(self.LENGTH_PREFIX, self.MESSAGE_ID)
+        self.__pieceIndex: bytes = utils.convertIntegerTo4ByteBigEndian(pieceIndex)
 
-    def getMessage(self) -> bytes:
-        return self.__messageID + self.__pieceIndex
+    def getMessageContent(self) -> bytes:
+        return super().getMessageContent() + self.__pieceIndex
 
     @property
     def pieceIndex(self) -> bytes:
         return self.__pieceIndex
-
-    def __eq__(self, otherMessage):
-        return isinstance(otherMessage, HaveMessage) and self.getMessage() == otherMessage.getMessage()
-
-    def __hash__(self):
-        return hash((self.__messageID, self.__pieceIndex))
