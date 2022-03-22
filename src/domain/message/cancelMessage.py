@@ -1,24 +1,21 @@
 from typing import Final
+import utils
+from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 
 
-class CancelMessage:
+class CancelMessage(MessageWithLengthAndID):
     MESSAGE_ID: Final[int] = 8
-    MESSAGE_LENGTH: Final[int] = 13  # messageID = 1B; pieceIndex, beginOffset, pieceLength = 4B each
+    LENGTH_PREFIX: Final[int] = 13  # messageID = 1B; pieceIndex, beginOffset, pieceLength = 4B each
 
     def __init__(self, pieceIndex: int, beginOffset: int, pieceLength: int):
         # pieceIndex and beginOffset are 0-indexed
-        self.__messageLength: bytes = self.MESSAGE_LENGTH.to_bytes(4, byteorder="big")
-        self.__messageID: bytes = chr(self.MESSAGE_ID).encode()
-        self.__pieceIndex: bytes = pieceIndex.to_bytes(4, byteorder="big")
-        self.__beginOffset: bytes = beginOffset.to_bytes(4, byteorder="big")
-        self.__pieceLength: bytes = pieceLength.to_bytes(4, byteorder="big")
+        super().__init__(self.LENGTH_PREFIX, self.MESSAGE_ID)
+        self.__pieceIndex: bytes = utils.convertIntegerTo4ByteBigEndian(pieceIndex)
+        self.__beginOffset: bytes = utils.convertIntegerTo4ByteBigEndian(beginOffset)
+        self.__pieceLength: bytes = utils.convertIntegerTo4ByteBigEndian(pieceLength)
 
-    def getMessage(self) -> bytes:
-        return self.__messageLength + self.__messageID + self.__pieceIndex + self.__beginOffset + self.__pieceLength
-
-    @property
-    def getMessageLength(self) -> bytes:
-        return self.__messageLength
+    def getMessageContent(self) -> bytes:
+        return super().getMessageContent() + self.__pieceIndex + self.__beginOffset + self.__pieceLength
 
     @property
     def pieceIndex(self) -> bytes:
@@ -31,9 +28,3 @@ class CancelMessage:
     @property
     def pieceLength(self) -> bytes:
         return self.__pieceLength
-
-    def __eq__(self, otherMessage):
-        return isinstance(otherMessage, CancelMessage) and self.getMessage() == otherMessage.getMessage()
-
-    def __hash__(self):
-        return hash(self.getMessage())
