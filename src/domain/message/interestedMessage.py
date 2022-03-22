@@ -1,17 +1,10 @@
 from typing import Final
+from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 
 
-class InterestedMessage:
+class InterestedMessage(MessageWithLengthAndID):
     MESSAGE_ID: Final[int] = 2
+    LENGTH_PREFIX: Final[int] = 1  # messageID = 1B
 
     def __init__(self):
-        self.__content: bytes = chr(self.MESSAGE_ID).encode()
-
-    def getMessage(self) -> bytes:
-        return self.__content
-
-    def __eq__(self, otherMessage):
-        return isinstance(otherMessage, InterestedMessage) and self.__content == otherMessage.__content
-
-    def __hash__(self):
-        return hash(self.__content)
+        super().__init__(self.LENGTH_PREFIX, self.MESSAGE_ID)
