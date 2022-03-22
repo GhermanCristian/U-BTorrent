@@ -1,4 +1,3 @@
-from abc import abstractmethod
 import utils
 from domain.message.message import Message
 
@@ -8,7 +7,8 @@ class MessageWithLengthAndID(Message):
         self._lengthPrefix: bytes = utils.convertIntegerTo4ByteBigEndian(lengthPrefix)
         self._messageID: bytes = utils.convertIntegerTo1Byte(messageID)
 
-    @abstractmethod
+    # this method is not abstract because there are messages (choke / unchoke / interested / not interested) which
+    # have no payload, therefore their content is just the prefix + the message ID
     def getMessageContent(self) -> bytes:
         return self._lengthPrefix + self._messageID
 
