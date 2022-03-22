@@ -1,18 +1,21 @@
 from typing import Final
+import utils
+from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 
 
-class PieceMessage:
+class PieceMessage(MessageWithLengthAndID):
     MESSAGE_ID: Final[int] = 7
+    BASE_LENGTH_PREFIX: Final[int] = 9  # messageID = 1B; pieceIndex, beginOffset = 4B each
 
     def __init__(self, pieceIndex: int, beginOffset: int, block: bytes):
         # pieceIndex and beginOffset are 0-indexed
-        self.__messageID: bytes = chr(self.MESSAGE_ID).encode()
-        self.__pieceIndex: bytes = chr(pieceIndex).encode()
-        self.__beginOffset: bytes = chr(beginOffset).encode()
+        super().__init__(self.BASE_LENGTH_PREFIX + len(block), self.MESSAGE_ID)
+        self.__pieceIndex: bytes = utils.convertIntegerTo4ByteBigEndian(pieceIndex)
+        self.__beginOffset: bytes = utils.convertIntegerTo4ByteBigEndian(beginOffset)
         self.__block: bytes = block
 
-    def getMessage(self) -> bytes:
-        return self.__messageID + self.__pieceIndex + self.__beginOffset + self.__block
+    def getMessageContent(self) -> bytes:
+        return super().getMessageContent() + self.__pieceIndex + self.__beginOffset + self.__block
 
     @property
     def pieceIndex(self) -> bytes:
@@ -25,9 +28,3 @@ class PieceMessage:
     @property
     def block(self) -> bytes:
         return self.__block
-
-    def __eq__(self, otherMessage):
-        return isinstance(otherMessage, PieceMessage) and self.getMessage() == otherMessage.getMessage()
-
-    def __hash__(self):
-        return hash((self.__messageID, self.__pieceIndex, self.__beginOffset, self.__block))
