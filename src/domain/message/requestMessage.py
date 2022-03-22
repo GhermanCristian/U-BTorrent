@@ -1,18 +1,21 @@
 from typing import Final
+import utils
+from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 
 
-class RequestMessage:
+class RequestMessage(MessageWithLengthAndID):
     MESSAGE_ID: Final[int] = 6
+    LENGTH_PREFIX: Final[int] = 13  # messageID = 1B; pieceIndex, beginOffset, pieceLength = 4B each
 
     def __init__(self, pieceIndex: int, beginOffset: int, pieceLength: int):
         # pieceIndex and beginOffset are 0-indexed
-        self.__messageID: bytes = chr(self.MESSAGE_ID).encode()
-        self.__pieceIndex: bytes = chr(pieceIndex).encode()
-        self.__beginOffset: bytes = chr(beginOffset).encode()
-        self.__pieceLength: bytes = chr(pieceLength).encode()
+        super().__init__(self.LENGTH_PREFIX, self.MESSAGE_ID)
+        self.__pieceIndex: bytes = utils.convertIntegerTo4ByteBigEndian(pieceIndex)
+        self.__beginOffset: bytes = utils.convertIntegerTo4ByteBigEndian(beginOffset)
+        self.__pieceLength: bytes = utils.convertIntegerTo4ByteBigEndian(pieceLength)
 
-    def getMessage(self) -> bytes:
-        return self.__messageID + self.__pieceIndex + self.__beginOffset + self.__pieceLength
+    def getMessageContent(self) -> bytes:
+        return super().getMessageContent() + self.__pieceIndex + self.__beginOffset + self.__pieceLength
 
     @property
     def pieceIndex(self) -> bytes:
@@ -25,9 +28,3 @@ class RequestMessage:
     @property
     def pieceLength(self) -> bytes:
         return self.__pieceLength
-
-    def __eq__(self, otherMessage):
-        return isinstance(otherMessage, RequestMessage) and self.getMessage() == otherMessage.getMessage()
-
-    def __hash__(self):
-        return hash((self.__messageID, self.__pieceIndex, self.__beginOffset, self.__pieceLength))
