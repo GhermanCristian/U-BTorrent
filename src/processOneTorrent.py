@@ -4,20 +4,25 @@ from domain.message.handshakeMessage import HandshakeMessage
 from domain.peer import Peer
 from domain.validator.handshakeResponseValidator import HandshakeResponseValidator
 import asyncio
+from torrentMetaInfoScanner import TorrentMetaInfoScanner
+from trackerConnection import TrackerConnection
 
 
-class PeerCommunication:
-    # TODO - determine IP dynamically; get port from trackerConnection
+class ProcessOneTorrent:
+    # TODO - determine IP dynamically;
     HOST_IP: Final[int] = 3155919880  # 188.27.132.8
-    HOST: Final[Peer] = Peer(HOST_IP, 6881)
     ATTEMPTS_TO_CONNECT_TO_PEER: Final[int] = 3
     MAX_HANDSHAKE_RESPONSE_SIZE: Final[int] = 1024
 
-    def __init__(self, peerList: List[Peer], infoHash: bytes, peerID: str):
-        self.__initialPeerList: List[Peer] = peerList
-        self.__infoHash: bytes = infoHash
-        self.__peerID: str = peerID
-        self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__infoHash, self.__peerID)  # will be specific to each torrent; in the future perhaps have a list
+    def __init__(self, torrentFileName: str):
+        scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFileName)
+        trackerConnection: TrackerConnection = TrackerConnection()
+        trackerConnection.makeTrackerRequest(scanner.getAnnounceURL(), scanner.getInfoHash(), scanner.getTotalContentSize())
+        self.__initialPeerList: List[Peer] = trackerConnection.peerList
+        self.__host: Final[Peer] = Peer(self.HOST_IP, trackerConnection.port)
+        self.__infoHash: bytes = scanner.getInfoHash()
+        self.__peerID: str = TrackerConnection.PEER_ID
+        self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__infoHash, self.__peerID)
         self.__handshakeResponseValidator: HandshakeResponseValidator = HandshakeResponseValidator(self.__infoHash, HandshakeMessage.CURRENT_PROTOCOL)
         self.__activeConnections: Dict[Peer, Tuple[StreamReader, StreamWriter]] = {}
 
@@ -39,8 +44,10 @@ class PeerCommunication:
                 handshakeResponse: bytes = await reader.read(self.MAX_HANDSHAKE_RESPONSE_SIZE)
                 if self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse):
                     self.__activeConnections[otherPeer] = (reader, writer)
+                    print(f"""{otherPeer} - OK""")
                     return
                 else:
+                    print(f"""{otherPeer} - not OK""")
                     await self.__closeConnection((reader, writer))
             except:
                 if reader is not None and writer is not None:
@@ -58,7 +65,7 @@ class PeerCommunication:
     async def __connectToPeers(self) -> None:
         connectTasks: List[Task] = []
         for peer in self.__initialPeerList:
-            if peer != self.HOST:
+            if peer != self.__host:
                 connectTasks.append(asyncio.create_task(self.__attemptToConnectToPeer(peer)))
         await asyncio.gather(*connectTasks)
         await self.__closeAllConnections()

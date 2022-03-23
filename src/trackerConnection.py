@@ -22,14 +22,18 @@ class TrackerConnection:
     PAYLOAD_EVENT_KEY: Final[str] = "event"
     PAYLOAD_EVENT_STARTED: Final[str] = "started"
 
+    def __init__(self):
+        self.__peerList: List[Peer] = []
+        self.__port: int = self.FIRST_AVAILABLE_PORT
+
     """
-    Computes the peer list according to the torrent meta info file
+    Makes a request to the specified tracker in order to obtain a list of peers.
+    Additionally, the port on which the request is made (from the client side), is stored
     @:param announceURL - the URL of the tracker
     @:param infoHash - hash value of the "info" section in the torrent meta info file
-    @:param totalSize - total size of the content
-    @:return the list of peers received from the tracker
+    @:param totalSize - total size of the content that is downloaded / uploaded
     """
-    def getPeerList(self, announceURL: str, infoHash: bytes, totalSize: int) -> List[Peer]:
+    def makeTrackerRequest(self, announceURL: str, infoHash: bytes, totalSize: int) -> None:
         payload = {
             self.PAYLOAD_INFO_HASH_KEY: infoHash,
             self.PAYLOAD_PEER_ID_KEY: self.PEER_ID,
@@ -47,12 +51,19 @@ class TrackerConnection:
                 try:
                     response: Response = requests.get(announceURL, params=payload, timeout=self.REQUEST_ATTEMPT_TIMEOUT)
                     if response.status_code == self.SUCCESS_STATUS_CODE:
-                        nonPeersPart, peerList = TrackerResponseScanner.scanTrackerResponse(response.content)
-                        # nonPeersPart is not used right now, but it probably will be in the future
-                        return peerList
+                        nonPeersPart, self.__peerList = TrackerResponseScanner.scanTrackerResponse(response.content)
+                        self.__port = payload[self.PAYLOAD_PORT_KEY]
+                        return
                 except Exception as e:
                     print("Error - ", e)
             payload[self.PAYLOAD_PORT_KEY] += 1  # try the next port
 
         print("Could not connect to the tracker")
-        return []
+
+    @property
+    def peerList(self) -> List[Peer]:
+        return self.__peerList
+
+    @property
+    def port(self) -> int:
+        return self.__port
