@@ -34,7 +34,7 @@ class PeerCommunication:
             reader, writer = None, None  # cannot really specify types here; the default StreamWriter constructor requires some values
             try:
                 reader, writer = await asyncio.open_connection(otherPeer.getIPRepresentedAsString(), otherPeer.port)
-                writer.write(self.__handshakeMessage.getMessage())
+                writer.write(self.__handshakeMessage.getMessageContent())
                 await writer.drain()
                 handshakeResponse: bytes = await reader.read(self.MAX_HANDSHAKE_RESPONSE_SIZE)
                 if self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse):
