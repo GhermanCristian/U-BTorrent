@@ -1,16 +1,14 @@
+import asyncio
 from asyncio import Task, StreamReader, StreamWriter
 from typing import List, Final, Dict, Tuple
 from domain.message.handshakeMessage import HandshakeMessage
 from domain.peer import Peer
 from domain.validator.handshakeResponseValidator import HandshakeResponseValidator
-import asyncio
 from torrentMetaInfoScanner import TorrentMetaInfoScanner
 from trackerConnection import TrackerConnection
 
 
 class ProcessOneTorrent:
-    # TODO - determine IP dynamically;
-    HOST_IP: Final[int] = 3155919880  # 188.27.132.8
     ATTEMPTS_TO_CONNECT_TO_PEER: Final[int] = 3
     MAX_HANDSHAKE_RESPONSE_SIZE: Final[int] = 1024
 
@@ -19,7 +17,7 @@ class ProcessOneTorrent:
         trackerConnection: TrackerConnection = TrackerConnection()
         trackerConnection.makeTrackerRequest(scanner.getAnnounceURL(), scanner.getInfoHash(), scanner.getTotalContentSize())
         self.__initialPeerList: List[Peer] = trackerConnection.peerList
-        self.__host: Final[Peer] = Peer(self.HOST_IP, trackerConnection.port)
+        self.__host: Final[Peer] = trackerConnection.host
         self.__infoHash: bytes = scanner.getInfoHash()
         self.__peerID: str = TrackerConnection.PEER_ID
         self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__infoHash, self.__peerID)

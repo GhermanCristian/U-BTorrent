@@ -4,3 +4,8 @@ def convertIntegerTo4ByteBigEndian(intValue: int) -> bytes:
 
 def convertIntegerTo1Byte(intValue: int) -> bytes:
     return chr(intValue).encode()
+
+
+def convertIPFromStringToInt(IP: str) -> int:
+    splitBytes: list[str] = IP.split('.')
+    return 256**3 * int(splitBytes[0]) + 256**2 * int(splitBytes[1]) + 256 * int(splitBytes[2]) + int(splitBytes[3])
