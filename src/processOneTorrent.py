@@ -1,6 +1,7 @@
 import asyncio
 from asyncio import Task, StreamReader, StreamWriter
 from typing import List, Final, Dict, Tuple
+import utils
 from domain.message.handshakeMessage import HandshakeMessage
 from domain.peer import Peer
 from domain.validator.handshakeResponseValidator import HandshakeResponseValidator
@@ -10,7 +11,7 @@ from trackerConnection import TrackerConnection
 
 class ProcessOneTorrent:
     ATTEMPTS_TO_CONNECT_TO_PEER: Final[int] = 3
-    MAX_HANDSHAKE_RESPONSE_SIZE: Final[int] = 1024
+    MAX_HANDSHAKE_RESPONSE_SIZE: Final[int] = 68
 
     def __init__(self, torrentFileName: str):
         scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFileName)
@@ -42,10 +43,8 @@ class ProcessOneTorrent:
                 handshakeResponse: bytes = await reader.read(self.MAX_HANDSHAKE_RESPONSE_SIZE)
                 if self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse):
                     self.__activeConnections[otherPeer] = (reader, writer)
-                    print(f"""{otherPeer} - OK""")
                     return
                 else:
-                    print(f"""{otherPeer} - not OK""")
                     await self.__closeConnection((reader, writer))
             except:
                 if reader is not None and writer is not None:
@@ -57,19 +56,42 @@ class ProcessOneTorrent:
             closeConnectionTasks.append(asyncio.create_task(self.__closeConnection(readerWriterPair)))
         await asyncio.gather(*closeConnectionTasks)
 
+    async def __readMessage(self, reader: StreamReader) -> None:
+        lengthPrefix: bytes = await reader.read(4)
+        if len(lengthPrefix) == 0:  # remove the connection from the active connections list ?
+            print("nothing was read")
+            return
+
+        if lengthPrefix == utils.convertIntegerTo4ByteBigEndian(0):
+            print("keep alive message")
+            return
+
+        messageID: bytes = await reader.read(1)
+        payloadLength: int = int.from_bytes(lengthPrefix, "big") - 1
+        payload: bytes = await reader.read(payloadLength)
+        print(str(messageID) + " - " + str(payload))
+
+    async def __readMessages(self) -> None:
+        readMessageTasks: List[Task] = []
+        for readerWriterPair in self.__activeConnections.values():
+            readMessageTasks.append(asyncio.create_task(self.__readMessage(readerWriterPair[0])))
+        await asyncio.gather(*readMessageTasks)
+
     """
-    Attempts to connect to all available peers and exchange handshake messages with them
+    Attempts to connect to all available peers and exchange messages with them
     """
-    async def __connectToPeers(self) -> None:
+    async def __peerCommunication(self) -> None:
         connectTasks: List[Task] = []
         for peer in self.__initialPeerList:
             if peer != self.__host:
                 connectTasks.append(asyncio.create_task(self.__attemptToConnectToPeer(peer)))
         await asyncio.gather(*connectTasks)
+        for _ in range(5):  # this will probably turn into a while True
+            await self.__readMessages()
         await self.__closeAllConnections()
 
     """
-    Wrapper for the method which connects to the peers
+    Wrapper for the method which communicates with the peers
     """
     def start(self) -> None:
-        asyncio.run(self.__connectToPeers())
+        asyncio.run(self.__peerCommunication())
