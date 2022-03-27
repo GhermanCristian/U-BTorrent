@@ -23,3 +23,6 @@ class MessageWithLengthAndID(Message):
     @property
     def getMessageID(self) -> bytes:
         return self._messageID
+
+    def __str__(self) -> str:
+        return f"ID = {utils.convertByteToInteger(self._messageID)}; len = {utils.convertByteToInteger(self._lengthPrefix)}; "

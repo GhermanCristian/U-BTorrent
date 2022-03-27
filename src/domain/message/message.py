@@ -11,3 +11,6 @@ class Message(ABC):  # ABC = abstract base class
 
     def __eq__(self, other) -> bool:
         return isinstance(other, self.__class__) and self.getMessageContent() == other.getMessageContent()
+
+    def __str__(self) -> str:
+        return str(self.getMessageContent())

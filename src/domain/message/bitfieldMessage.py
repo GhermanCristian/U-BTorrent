@@ -20,3 +20,6 @@ class BitfieldMessage(MessageWithLengthAndID):
     @property
     def bitfield(self) -> bytes:
         return self.__bitfield
+
+    def __str__(self) -> str:
+        return super().__str__() + f"bitfield: {self.__bitfield}"

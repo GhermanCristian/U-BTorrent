@@ -21,3 +21,6 @@ class HaveMessage(MessageWithLengthAndID):
     @property
     def pieceIndex(self) -> bytes:
         return self.__pieceIndex
+
+    def __str__(self) -> str:
+        return super().__str__() + f"piece index = {utils.convertByteToInteger(self.__pieceIndex)}"

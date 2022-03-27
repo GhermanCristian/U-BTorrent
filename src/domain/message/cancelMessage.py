@@ -33,3 +33,6 @@ class CancelMessage(MessageWithLengthAndID):
     @property
     def pieceLength(self) -> bytes:
         return self.__pieceLength
+
+    def __str__(self) -> str:
+        return super().__str__() + f"piece index = {utils.convertByteToInteger(self.__pieceIndex)}; begin offset = {utils.convertByteToInteger(self.__beginOffset)}; piece length = {utils.convertByteToInteger(self.__pieceLength)}"
