@@ -3,8 +3,10 @@ from asyncio import Task, StreamReader, StreamWriter
 from typing import List, Final, Dict, Tuple
 import utils
 from domain.message.handshakeMessage import HandshakeMessage
+from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 from domain.peer import Peer
 from domain.validator.handshakeResponseValidator import HandshakeResponseValidator
+from messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
 from torrentMetaInfoScanner import TorrentMetaInfoScanner
 from trackerConnection import TrackerConnection
 
@@ -56,9 +58,10 @@ class ProcessOneTorrent:
             closeConnectionTasks.append(asyncio.create_task(self.__closeConnection(readerWriterPair)))
         await asyncio.gather(*closeConnectionTasks)
 
-    async def __readMessage(self, reader: StreamReader) -> None:
+    async def __readMessage(self, otherPeer: Peer) -> None:
+        reader: StreamReader = self.__activeConnections[otherPeer][0]
         lengthPrefix: bytes = await reader.read(4)
-        if len(lengthPrefix) == 0:  # remove the connection from the active connections list ?
+        if len(lengthPrefix) == 0:
             print("nothing was read")
             return
 
@@ -69,12 +72,16 @@ class ProcessOneTorrent:
         messageID: bytes = await reader.read(1)
         payloadLength: int = int.from_bytes(lengthPrefix, "big") - 1
         payload: bytes = await reader.read(payloadLength)
-        print(str(messageID) + " - " + str(payload))
+        if messageID == utils.convertIntegerTo1Byte(20):
+            print("Extended protocol - ignored for now")
+            return
+        message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
+        print(str(message) + " - " + str(otherPeer.IP))
 
     async def __readMessages(self) -> None:
         readMessageTasks: List[Task] = []
-        for readerWriterPair in self.__activeConnections.values():
-            readMessageTasks.append(asyncio.create_task(self.__readMessage(readerWriterPair[0])))
+        for otherPeer in self.__activeConnections.keys():
+            readMessageTasks.append(asyncio.create_task(self.__readMessage(otherPeer)))
         await asyncio.gather(*readMessageTasks)
 
     """
