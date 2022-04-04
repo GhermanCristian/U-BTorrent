@@ -3,16 +3,11 @@ from asyncio import Task, StreamReader, StreamWriter
 from typing import List, Final, Dict, Tuple
 from bitarray import bitarray
 import utils
-from domain.message.bitfieldMessage import BitfieldMessage
-from domain.message.chokeMessage import ChokeMessage
 from domain.message.handshakeMessage import HandshakeMessage
-from domain.message.haveMessage import HaveMessage
-from domain.message.interestedMessage import InterestedMessage
 from domain.message.messageWithLengthAndID import MessageWithLengthAndID
-from domain.message.notInterestedMessage import NotInterestedMessage
-from domain.message.unchokeMessage import UnchokeMessage
 from domain.peer import Peer
 from domain.validator.handshakeResponseValidator import HandshakeResponseValidator
+from messageProcessor import MessageProcessor
 from messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
 from torrentMetaInfoScanner import TorrentMetaInfoScanner
 from trackerConnection import TrackerConnection
@@ -67,24 +62,6 @@ class ProcessOneTorrent:
             closeConnectionTasks.append(asyncio.create_task(self.__closeConnection(readerWriterPair)))
         await asyncio.gather(*closeConnectionTasks)
 
-    def __processMessage(self, otherPeer: Peer, message: MessageWithLengthAndID) -> None:
-        # TODO - implement this using the factory pattern
-        if isinstance(message, BitfieldMessage):
-            otherPeer.availablePieces.clear()
-            otherPeer.availablePieces.frombytes(message.bitfield)
-        elif isinstance(message, HaveMessage):
-            otherPeer.availablePieces[utils.convertByteToInteger(message.pieceIndex)] = 1
-        elif isinstance(message, ChokeMessage):
-            otherPeer.isChokingMe = True
-        elif isinstance(message, UnchokeMessage):
-            otherPeer.isChokingMe = False
-        elif isinstance(message, InterestedMessage):
-            otherPeer.isInterestedInMe = True
-        elif isinstance(message, NotInterestedMessage):
-            otherPeer.isInterestedInMe = False
-
-        print(str(message) + " - " + str(otherPeer.IP))
-
     async def __readMessage(self, otherPeer: Peer) -> None:
         reader: StreamReader = self.__activeConnections[otherPeer][0]
         lengthPrefix: bytes = await reader.read(4)
@@ -103,7 +80,8 @@ class ProcessOneTorrent:
             print("Extended protocol - ignored for now")
             return
         message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
-        self.__processMessage(otherPeer, message)
+        MessageProcessor(otherPeer).processMessage(message)
+        print(str(message) + " - " + str(otherPeer.IP))
 
     async def __readMessages(self) -> None:
         readMessageTasks: List[Task] = []
