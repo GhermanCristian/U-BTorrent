@@ -1,3 +1,6 @@
+from bitarray import bitarray
+
+
 class Peer:
     def __init__(self, IP: int, port: int):
         # IP + port uniquely determine the peer (for example, __eq__ won't check choking / interested, same for __hash__)
@@ -7,6 +10,7 @@ class Peer:
         self.__isChokingMe: bool = True
         self.__amInterestedInIt: bool = False
         self.__isInterestedInMe: bool = False
+        self.__availablePieces: bitarray = bitarray()
 
     @property
     def IP(self) -> int:
@@ -20,17 +24,41 @@ class Peer:
     def amChokingIt(self) -> bool:
         return self.__amChokingIt
 
+    @amChokingIt.setter
+    def amChokingIt(self, newValue: bool) -> None:
+        self.__amChokingIt = newValue
+
     @property
     def isChokingMe(self) -> bool:
         return self.__isChokingMe
+
+    @isChokingMe.setter
+    def isChokingMe(self, newValue: bool) -> None:
+        self.__isChokingMe = newValue
 
     @property
     def amInterestedInIt(self) -> bool:
         return self.__amInterestedInIt
 
+    @amInterestedInIt.setter
+    def amInterestedInIt(self, newValue: bool) -> None:
+        self.__amInterestedInIt = newValue
+
     @property
     def isInterestedInMe(self) -> bool:
         return self.__isInterestedInMe
+
+    @isInterestedInMe.setter
+    def isInterestedInMe(self, newValue: bool) -> None:
+        self.__isInterestedInMe = newValue
+
+    @property
+    def availablePieces(self) -> bitarray:
+        return self.__availablePieces
+
+    @availablePieces.setter
+    def availablePieces(self, newValue: bitarray) -> None:
+        self.__availablePieces = newValue
 
     def getIPRepresentedAsString(self) -> str:
         firstOctet = (self.__IP // 256 ** 3) % 256
@@ -49,3 +77,4 @@ class Peer:
 
     def __hash__(self):
         return hash((self.__IP, self.__port))
+
