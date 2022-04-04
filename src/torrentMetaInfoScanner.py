@@ -1,11 +1,11 @@
-import hashlib
+import hashlib, math
 from bencode3 import bdecode, bencode
 from typing import List, Final
 from domain.file import File
 
 
 class TorrentMetaInfoScanner:
-    READ_BINARY: Final[str] = "rb"
+    READ_BINARY_MODE: Final[str] = "rb"
     LOCATION_SEPARATOR: Final[str] = "/"
     FILE_PATH_KEY: Final[str] = "path"
     FILE_LENGTH_KEY: Final[str] = "length"
@@ -44,7 +44,7 @@ class TorrentMetaInfoScanner:
     """
     Determines if the current torrent contains multiple files or just one
     @:param info - dictionary with information about the torrent content
-    @:return true, if the torrent contains muliple files; false, otherwise
+    @:return true, if the torrent contains multiple files; false, otherwise
     """
     def __multipleFileMode(self, info: dict) -> bool:
         return self.FILES_KEY in info.keys()
@@ -53,7 +53,7 @@ class TorrentMetaInfoScanner:
     Decodes a torrent meta info file, and loads in memory all the necessary fields
     """
     def __decodeTorrentFile(self) -> None:
-        with open(self.__torrentFileLocation, self.READ_BINARY) as torrentFile:
+        with open(self.__torrentFileLocation, self.READ_BINARY_MODE) as torrentFile:
             content: dict = bdecode(torrentFile.read())
             self.__announceURL = content[self.ANNOUNCE_KEY]
             self.__announceURLList = content[self.ANNOUNCE_LIST_KEY]
@@ -81,6 +81,12 @@ class TorrentMetaInfoScanner:
 
     def getPieceLength(self) -> int:
         return self.__pieceLength
+
+    def getPieceCount(self) -> int:
+        return math.ceil(self.getTotalContentSize() / self.__pieceLength)
+
+    def getFinalPieceLength(self) -> int:
+        return self.getTotalContentSize() % self.__pieceLength
 
     def getPieces(self) -> bytes:
         return self.__pieces

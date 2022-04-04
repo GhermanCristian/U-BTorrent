@@ -1,6 +1,7 @@
 import asyncio
 from asyncio import Task, StreamReader, StreamWriter
 from typing import List, Final, Dict, Tuple
+from bitarray import bitarray
 import utils
 from domain.message.handshakeMessage import HandshakeMessage
 from domain.message.messageWithLengthAndID import MessageWithLengthAndID
@@ -19,6 +20,8 @@ class ProcessOneTorrent:
         scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFileName)
         trackerConnection: TrackerConnection = TrackerConnection()
         trackerConnection.makeTrackerRequest(scanner.getAnnounceURL(), scanner.getInfoHash(), scanner.getTotalContentSize())
+        self.__completedPieces: bitarray = bitarray(scanner.getPieceCount())  # this will have to be loaded from disk when resuming downloads
+        self.__completedPieces.setall(0)
         self.__initialPeerList: List[Peer] = trackerConnection.peerList
         self.__host: Final[Peer] = trackerConnection.host
         self.__infoHash: bytes = scanner.getInfoHash()
