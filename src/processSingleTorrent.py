@@ -13,7 +13,7 @@ from torrentMetaInfoScanner import TorrentMetaInfoScanner
 from trackerConnection import TrackerConnection
 
 
-class ProcessOneTorrent:
+class ProcessSingleTorrent:
     ATTEMPTS_TO_CONNECT_TO_PEER: Final[int] = 3
     MAX_HANDSHAKE_RESPONSE_SIZE: Final[int] = 68
 
@@ -39,7 +39,7 @@ class ProcessOneTorrent:
     Tries to connect to another peer in order to exchange handshake messages
     @:param otherPeer - the peer we are trying to communicate with
     """
-    async def __attemptToConnectToPeer(self, otherPeer: Peer) -> None:
+    async def __attemptToConnectToPeer(self, otherPeer: Peer) -> bool:
         for attempt in range(self.ATTEMPTS_TO_CONNECT_TO_PEER):
             reader, writer = None, None  # cannot really specify types here; the default StreamWriter constructor requires some values
             try:
@@ -49,12 +49,13 @@ class ProcessOneTorrent:
                 handshakeResponse: bytes = await reader.read(self.MAX_HANDSHAKE_RESPONSE_SIZE)
                 if self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse):
                     self.__activeConnections[otherPeer] = (reader, writer)
-                    return
+                    return True
                 else:
                     await self.__closeConnection((reader, writer))
             except:
                 if reader is not None and writer is not None:
                     await self.__closeConnection((reader, writer))
+        return False
 
     async def __closeAllConnections(self):
         closeConnectionTasks: List[Task] = []
@@ -63,6 +64,7 @@ class ProcessOneTorrent:
         await asyncio.gather(*closeConnectionTasks)
 
     async def __readMessage(self, otherPeer: Peer) -> None:
+        # TODO - make this a while True with a buffer, because there are some messages which are send through several reads
         reader: StreamReader = self.__activeConnections[otherPeer][0]
         lengthPrefix: bytes = await reader.read(4)
         if len(lengthPrefix) == 0:
@@ -83,24 +85,24 @@ class ProcessOneTorrent:
         MessageProcessor(otherPeer).processMessage(message)
         print(str(message) + " - " + str(otherPeer.IP))
 
-    async def __readMessages(self) -> None:
-        readMessageTasks: List[Task] = []
-        for otherPeer in self.__activeConnections.keys():
-            readMessageTasks.append(asyncio.create_task(self.__readMessage(otherPeer)))
-        await asyncio.gather(*readMessageTasks)
+    async def __startPeer(self, otherPeer) -> None:
+        if not await self.__attemptToConnectToPeer(otherPeer):
+            return
 
-    """
-    Attempts to connect to all available peers and exchange messages with them
-    """
+        # TODO - send interested message
+        
+        for _ in range(15):
+            await self.__readMessage(otherPeer)
+
     async def __peerCommunication(self) -> None:
-        connectTasks: List[Task] = []
-        for peer in self.__initialPeerList:
-            if peer != self.__host:
-                connectTasks.append(asyncio.create_task(self.__attemptToConnectToPeer(peer)))
-        await asyncio.gather(*connectTasks)
-        for _ in range(5):  # this will probably turn into a while True
-            await self.__readMessages()
-        await self.__closeAllConnections()
+        try:
+            self.__initialPeerList.remove(self.__host)
+        except ValueError:
+            pass
+        await asyncio.gather(*[
+            self.__startPeer(otherPeer)
+            for otherPeer in self.__initialPeerList
+        ])
 
     """
     Wrapper for the method which communicates with the peers
