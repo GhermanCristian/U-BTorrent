@@ -4,6 +4,7 @@ from typing import List, Final, Dict, Tuple
 from bitarray import bitarray
 import utils
 from domain.message.handshakeMessage import HandshakeMessage
+from domain.message.interestedMessage import InterestedMessage
 from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 from domain.peer import Peer
 from domain.validator.handshakeResponseValidator import HandshakeResponseValidator
@@ -50,9 +51,8 @@ class ProcessSingleTorrent:
                 if self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse):
                     self.__activeConnections[otherPeer] = (reader, writer)
                     return True
-                else:
-                    await self.__closeConnection((reader, writer))
-            except:
+                await self.__closeConnection((reader, writer))
+            except Exception:
                 if reader is not None and writer is not None:
                     await self.__closeConnection((reader, writer))
         return False
@@ -63,42 +63,55 @@ class ProcessSingleTorrent:
             closeConnectionTasks.append(asyncio.create_task(self.__closeConnection(readerWriterPair)))
         await asyncio.gather(*closeConnectionTasks)
 
-    async def __readMessage(self, otherPeer: Peer) -> None:
-        # TODO - make this a while True with a buffer, because there are some messages which are send through several reads
+    async def __readMessage(self, otherPeer: Peer) -> bool:
         reader: StreamReader = self.__activeConnections[otherPeer][0]
-        lengthPrefix: bytes = await reader.read(4)
+        try:
+            lengthPrefix: bytes = await reader.read(4)
+        except ConnectionError as e:
+            print(e)
+            return False
+
         if len(lengthPrefix) == 0:
-            print("nothing was read")
-            return
+            print(f"nothing was read - {otherPeer.IP}")
+            return True
 
         if lengthPrefix == utils.convertIntegerTo4ByteBigEndian(0):
-            print("keep alive message")
-            return
+            print(f"keep alive message - {otherPeer.IP}")
+            return True
 
         messageID: bytes = await reader.read(1)
         payloadLength: int = int.from_bytes(lengthPrefix, "big") - 1
+        # TODO - make this a while True with a buffer, because there are some messages which are send through several reads
         payload: bytes = await reader.read(payloadLength)
         if messageID == utils.convertIntegerTo1Byte(20):
-            print("Extended protocol - ignored for now")
-            return
+            print(f"Extended protocol - ignored for now - {otherPeer.IP}")
+            return True
         message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
         MessageProcessor(otherPeer).processMessage(message)
-        print(str(message) + " - " + str(otherPeer.IP))
+        print(f"{message} - {otherPeer.IP}")
+        return True
+
+    async def __sendInterestedMessage(self, otherPeer) -> None:
+        writer: StreamWriter = self.__activeConnections[otherPeer][1]
+        writer.write(InterestedMessage().getMessageContent())
+        await writer.drain()
 
     async def __startPeer(self, otherPeer) -> None:
         if not await self.__attemptToConnectToPeer(otherPeer):
             return
 
-        # TODO - send interested message
-        
-        for _ in range(15):
-            await self.__readMessage(otherPeer)
+        await self.__sendInterestedMessage(otherPeer)
+        otherPeer.amInterestedInIt = True
+        for _ in range(6):  # will probably become while True
+            if not await self.__readMessage(otherPeer):
+                return
 
     async def __peerCommunication(self) -> None:
         try:
             self.__initialPeerList.remove(self.__host)
         except ValueError:
             pass
+
         await asyncio.gather(*[
             self.__startPeer(otherPeer)
             for otherPeer in self.__initialPeerList
