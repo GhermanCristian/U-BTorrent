@@ -13,3 +13,7 @@ def convertIntegerTo1Byte(intValue: int) -> bytes:
 def convertIPFromStringToInt(IP: str) -> int:
     splitBytes: list[str] = IP.split('.')
     return 256**3 * int(splitBytes[0]) + 256**2 * int(splitBytes[1]) + 256 * int(splitBytes[2]) + int(splitBytes[3])
+
+
+def convert4ByteBigEndianToInteger(byteValue: bytes) -> int:
+    return int.from_bytes(byteValue, "big")
