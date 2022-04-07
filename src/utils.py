@@ -1,3 +1,7 @@
+from asyncio import StreamReader, StreamWriter
+from typing import Tuple
+
+
 def convertIntegerTo4ByteBigEndian(intValue: int) -> bytes:
     return intValue.to_bytes(4, byteorder="big")
 
@@ -17,3 +21,8 @@ def convertIPFromStringToInt(IP: str) -> int:
 
 def convert4ByteBigEndianToInteger(byteValue: bytes) -> int:
     return int.from_bytes(byteValue, "big")
+
+
+async def closeConnection(readerWriterTuple: Tuple[StreamReader, StreamWriter]) -> None:
+    readerWriterTuple[1].close()
+    await readerWriterTuple[1].wait_closed()

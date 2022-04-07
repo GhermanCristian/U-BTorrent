@@ -1,4 +1,6 @@
+from asyncio import StreamReader, StreamWriter
 from bitarray import bitarray
+import utils
 
 
 class Peer:
@@ -11,6 +13,8 @@ class Peer:
         self.__amInterestedInIt: bool = False
         self.__isInterestedInMe: bool = False
         self.__availablePieces: bitarray = bitarray()
+        self.__streamReader: StreamReader | None = None
+        self.__streamWriter: StreamWriter | None = None
 
     @property
     def IP(self) -> int:
@@ -60,6 +64,30 @@ class Peer:
     def availablePieces(self, newValue: bitarray) -> None:
         self.__availablePieces = newValue
 
+    @property
+    def streamReader(self) -> StreamReader:
+        return self.__streamReader
+
+    @streamReader.setter
+    def streamReader(self, newReader: StreamReader) -> None:
+        self.__streamReader = newReader
+
+    @property
+    def streamWriter(self) -> StreamWriter:
+        return self.__streamWriter
+
+    @streamWriter.setter
+    def streamWriter(self, newWriter: StreamWriter) -> None:
+        self.__streamWriter = newWriter
+
+    async def closeConnection(self) -> None:
+        if self.hasActiveConnection():
+            await utils.closeConnection((self.__streamReader, self.__streamWriter))
+        self.__streamReader, self.__streamWriter = None, None
+
+    def hasActiveConnection(self) -> bool:
+        return self.__streamReader is not None and self.__streamWriter is not None
+
     def getIPRepresentedAsString(self) -> str:
         firstOctet = (self.__IP // 256 ** 3) % 256
         secondOctet = (self.__IP // 256 ** 2) % 256
@@ -77,4 +105,3 @@ class Peer:
 
     def __hash__(self):
         return hash((self.__IP, self.__port))
-

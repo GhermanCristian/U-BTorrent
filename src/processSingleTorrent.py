@@ -1,6 +1,6 @@
 import asyncio
-from asyncio import StreamReader, StreamWriter
-from typing import List, Final, Dict, Tuple
+from asyncio import StreamReader
+from typing import List, Final
 from bitarray import bitarray
 import utils
 from domain.message.handshakeMessage import HandshakeMessage
@@ -26,21 +26,12 @@ class ProcessSingleTorrent:
         trackerConnection.makeTrackerRequest(self.__scanner.getAnnounceURL(), self.__scanner.getInfoHash(), self.__scanner.getTotalContentSize())
         self.__completedPieces: bitarray = bitarray(self.__scanner.getPieceCount())  # this will have to be loaded from disk when resuming downloads
         self.__completedPieces.setall(0)
-        self.__initialPeerList: List[Peer] = trackerConnection.peerList
+        self.__peerList: List[Peer] = trackerConnection.peerList
         self.__host: Final[Peer] = trackerConnection.host
         self.__infoHash: bytes = self.__scanner.getInfoHash()
         self.__peerID: str = TrackerConnection.PEER_ID
         self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__infoHash, self.__peerID)
         self.__handshakeResponseValidator: HandshakeResponseValidator = HandshakeResponseValidator(self.__infoHash, HandshakeMessage.CURRENT_PROTOCOL)
-        self.__activeConnections: Dict[Peer, Tuple[StreamReader, StreamWriter]] = {}
-
-    """
-    Closes the connection to a given writer
-    @:param readerWriterPair - contains the StreamWriter object to be closed
-    """
-    async def __closeConnection(self, readerWriterPair: Tuple[StreamReader, StreamWriter]) -> None:
-        readerWriterPair[1].close()
-        await readerWriterPair[1].wait_closed()
 
     """
     Attempts to read byteCount bytes. If too many empty messages are read in a row, the reading is aborted
@@ -68,40 +59,37 @@ class ProcessSingleTorrent:
     @:returns True, if the connection was successful, false otherwise
     """
     async def __attemptToConnectToPeer(self, otherPeer: Peer) -> bool:
-        reader, writer = None, None  # cannot really specify types here; the default StreamWriter constructor requires some values
         for attempt in range(self.ATTEMPTS_TO_CONNECT_TO_PEER):
             try:
-                reader, writer = await asyncio.open_connection(otherPeer.getIPRepresentedAsString(), otherPeer.port)
-                await self.__sendMessage(writer, self.__handshakeMessage)
-                handshakeResponse: bytes = await self.__attemptToReadBytes(reader, HandshakeMessage.HANDSHAKE_LENGTH)
+                otherPeer.streamReader, otherPeer.streamWriter = await asyncio.open_connection(otherPeer.getIPRepresentedAsString(), otherPeer.port)
+                await self.__sendMessage(otherPeer, self.__handshakeMessage)
+                handshakeResponse: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, HandshakeMessage.HANDSHAKE_LENGTH)
                 if self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse):
-                    self.__activeConnections[otherPeer] = (reader, writer)
                     return True
-                await self.__closeConnection((reader, writer))
+                await otherPeer.closeConnection()
             except Exception:
-                if reader is not None and writer is not None:
-                    await self.__closeConnection((reader, writer))
+                await otherPeer.closeConnection()
         return False
 
     async def __closeAllConnections(self) -> None:
         await asyncio.gather(*[
-            self.__closeConnection(readerWriterPair) for readerWriterPair in self.__activeConnections.values()
+            peer.closeConnection() for peer in self.__peerList if peer.hasActiveConnection()
         ])
 
     """
-    Sends a message to another peer through a StreamWriter
-    @:param writer - data is sent through it
+    Sends a message to another peer
+    @:param otherPeer - the recipient of the data; assumed to have an active connection
     @:param message - the message to be sent
     """
-    async def __sendMessage(self, writer: StreamWriter, message: Message) -> None:
+    async def __sendMessage(self, otherPeer: Peer, message: Message) -> None:
         try:
-            writer.write(message.getMessageContent())
-            await writer.drain()
+            otherPeer.streamWriter.write(message.getMessageContent())
+            await otherPeer.streamWriter.drain()
         except Exception as e:
             print(e)
 
-    async def __sendRequestMessage(self, otherPeer: Peer, pieceIndex: int, beginOffset: int, pieceLength: int) -> None:
-        await self.__sendMessage(self.__activeConnections[otherPeer][1], RequestMessage(pieceIndex, beginOffset, pieceLength))
+    async def __sendRequestMessage(self, otherPeer: Peer, pieceIndex: int, beginOffset: int, blockLength: int) -> None:
+        await self.__sendMessage(otherPeer, RequestMessage(pieceIndex, beginOffset, blockLength))
 
     async def __requestPiece(self, otherPeer: Peer) -> None:
         pieceIndex: int = 69
@@ -115,9 +103,8 @@ class ProcessSingleTorrent:
     @:returns True, if the message has been read successfully, false otherwise
     """
     async def __readMessage(self, otherPeer: Peer) -> bool:
-        reader: StreamReader = self.__activeConnections[otherPeer][0]
         try:
-            lengthPrefix: bytes = await self.__attemptToReadBytes(reader, 4)
+            lengthPrefix: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, 4)
         except ConnectionError as e:
             print(e)
             return False
@@ -129,9 +116,9 @@ class ProcessSingleTorrent:
             print(f"keep alive message - {otherPeer.getIPRepresentedAsString()}")
             return True
 
-        messageID: bytes = await self.__attemptToReadBytes(reader, self.MESSAGE_ID_LENGTH)
+        messageID: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, self.MESSAGE_ID_LENGTH)
         payloadLength: int = utils.convert4ByteBigEndianToInteger(lengthPrefix) - self.MESSAGE_ID_LENGTH
-        payload: bytes = await self.__attemptToReadBytes(reader, payloadLength)
+        payload: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, payloadLength)
 
         if messageID == utils.convertIntegerTo1Byte(20):
             print(f"Extended protocol - ignored for now - {otherPeer.getIPRepresentedAsString()}")
@@ -147,7 +134,7 @@ class ProcessSingleTorrent:
         return True
 
     async def __sendInterestedMessage(self, otherPeer: Peer) -> None:
-        await self.__sendMessage(self.__activeConnections[otherPeer][1], InterestedMessage())
+        await self.__sendMessage(otherPeer, InterestedMessage())
 
     async def __startPeer(self, otherPeer) -> None:
         if not await self.__attemptToConnectToPeer(otherPeer):
@@ -156,23 +143,24 @@ class ProcessSingleTorrent:
         await self.__sendInterestedMessage(otherPeer)
         otherPeer.amInterestedInIt = True
         for _ in range(6):  # will probably become while True
-            if not await self.__readMessage(otherPeer):
+            if not otherPeer.hasActiveConnection() or not await self.__readMessage(otherPeer):
                 return
             await self.__requestPiece(otherPeer)
 
     async def __peerCommunication(self) -> None:
         try:
-            self.__initialPeerList.remove(self.__host)
+            self.__peerList.remove(self.__host)
         except ValueError:
             pass
 
         await asyncio.gather(*[
             self.__startPeer(otherPeer)
-            for otherPeer in self.__initialPeerList
+            for otherPeer in self.__peerList
         ])
 
     """
     Wrapper for the method which communicates with the peers
     """
     def start(self) -> None:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # due to issues with closing the event loop in windows
         asyncio.run(self.__peerCommunication())
