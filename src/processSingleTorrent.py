@@ -5,7 +5,6 @@ from bitarray import bitarray
 import utils
 from domain.message.handshakeMessage import HandshakeMessage
 from domain.message.interestedMessage import InterestedMessage
-from domain.message.message import Message
 from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 from domain.message.requestMessage import RequestMessage
 from domain.peer import Peer
@@ -39,7 +38,8 @@ class ProcessSingleTorrent:
     @:param byteCount - the number of bytes to be read
     @:returns The read data, of length byteCount or less
     """
-    async def __attemptToReadBytes(self, reader: StreamReader, byteCount: int) -> bytes:
+    @staticmethod
+    async def __attemptToReadBytes(reader: StreamReader, byteCount: int) -> bytes:
         payload: bytes = b""
         completedLength: int = 0
         consecutiveEmptyMessages: int = 0
@@ -62,7 +62,7 @@ class ProcessSingleTorrent:
         for attempt in range(self.ATTEMPTS_TO_CONNECT_TO_PEER):
             try:
                 otherPeer.streamReader, otherPeer.streamWriter = await asyncio.open_connection(otherPeer.getIPRepresentedAsString(), otherPeer.port)
-                await self.__sendMessage(otherPeer, self.__handshakeMessage)
+                await self.__handshakeMessage.send(otherPeer)
                 handshakeResponse: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, HandshakeMessage.HANDSHAKE_LENGTH)
                 if self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse):
                     return True
@@ -76,20 +76,9 @@ class ProcessSingleTorrent:
             peer.closeConnection() for peer in self.__peerList if peer.hasActiveConnection()
         ])
 
-    """
-    Sends a message to another peer
-    @:param otherPeer - the recipient of the data; assumed to have an active connection
-    @:param message - the message to be sent
-    """
-    async def __sendMessage(self, otherPeer: Peer, message: Message) -> None:
-        try:
-            otherPeer.streamWriter.write(message.getMessageContent())
-            await otherPeer.streamWriter.drain()
-        except Exception as e:
-            print(e)
-
-    async def __sendRequestMessage(self, otherPeer: Peer, pieceIndex: int, beginOffset: int, blockLength: int) -> None:
-        await self.__sendMessage(otherPeer, RequestMessage(pieceIndex, beginOffset, blockLength))
+    @staticmethod
+    async def __sendRequestMessage(otherPeer: Peer, pieceIndex: int, beginOffset: int, blockLength: int) -> None:
+        await RequestMessage(pieceIndex, beginOffset, blockLength).send(otherPeer)
 
     async def __requestPiece(self, otherPeer: Peer) -> None:
         pieceIndex: int = 69
@@ -133,14 +122,11 @@ class ProcessSingleTorrent:
 
         return True
 
-    async def __sendInterestedMessage(self, otherPeer: Peer) -> None:
-        await self.__sendMessage(otherPeer, InterestedMessage())
-
     async def __startPeer(self, otherPeer) -> None:
         if not await self.__attemptToConnectToPeer(otherPeer):
             return
 
-        await self.__sendInterestedMessage(otherPeer)
+        await InterestedMessage().send(otherPeer)
         otherPeer.amInterestedInIt = True
         for _ in range(6):  # will probably become while True
             if not otherPeer.hasActiveConnection() or not await self.__readMessage(otherPeer):
