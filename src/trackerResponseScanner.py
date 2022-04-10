@@ -16,6 +16,7 @@ class TrackerResponseScanner:
     """
     @staticmethod
     def computePeers(peersPart: bytearray) -> List[Peer]:
+        # TODO - parse the peers when in dictionary mode
         peerAddressList: List[Peer] = []
         currentIndex: int = len(TrackerResponseScanner.PEERS_PART_HEADER)  # skip the "5:peers" part
         peersByteCount: int = 0  # the number of bytes used to represent peer addresses

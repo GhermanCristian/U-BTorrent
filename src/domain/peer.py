@@ -82,7 +82,10 @@ class Peer:
 
     async def closeConnection(self) -> None:
         if self.hasActiveConnection():
-            await utils.closeConnection((self.__streamReader, self.__streamWriter))
+            try:
+                await utils.closeConnection((self.__streamReader, self.__streamWriter))
+            except Exception as e:
+                print(e)
         self.__streamReader, self.__streamWriter = None, None
 
     def hasActiveConnection(self) -> bool:

@@ -1,6 +1,6 @@
 import asyncio
 from asyncio import StreamReader
-from typing import List, Final
+from typing import List, Final, Coroutine
 import utils
 from domain.message.handshakeMessage import HandshakeMessage
 from domain.message.interestedMessage import InterestedMessage
@@ -49,6 +49,8 @@ class ProcessSingleTorrent:
                 consecutiveEmptyMessages += 1
             else:
                 consecutiveEmptyMessages = 0
+        if consecutiveEmptyMessages == 3:
+            raise ConnectionError("Error when trying to read message")
         return payload
 
     """
@@ -110,27 +112,33 @@ class ProcessSingleTorrent:
 
         return True
 
+    async def __makeDownloadRequests(self) -> None:
+        while True:
+            await asyncio.sleep(1)
+            await self.__downloadSession.requestBlock()
+
     async def __startPeer(self, otherPeer) -> None:
         if not await self.__attemptToConnectToPeer(otherPeer):
             return
 
         await InterestedMessage().send(otherPeer)
         otherPeer.amInterestedInIt = True
-        for _ in range(6):  # will probably become while True
-            if not otherPeer.hasActiveConnection() or not await self.__readMessage(otherPeer):
-                return
-            await self.__downloadSession.requestBlock()  # have a timer and call this like every ~1s
+        while otherPeer.hasActiveConnection():
+            if not await self.__readMessage(otherPeer):
+                await otherPeer.closeConnection()
 
     async def __peerCommunication(self) -> None:
         try:
             self.__peerList.remove(self.__host)
         except ValueError:
             pass
+        if len(self.__peerList) == 0:
+            return
 
-        await asyncio.gather(*[
-            self.__startPeer(otherPeer)
-            for otherPeer in self.__peerList
-        ])
+        coroutineList: List[Coroutine] = [self.__startPeer(otherPeer) for otherPeer in self.__peerList]
+        coroutineList.append(self.__makeDownloadRequests())
+        await asyncio.gather(*coroutineList)
+        await self.__closeAllConnections()
 
     """
     Wrapper for the method which communicates with the peers
@@ -138,3 +146,4 @@ class ProcessSingleTorrent:
     def start(self) -> None:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # due to issues with closing the event loop in windows
         asyncio.run(self.__peerCommunication())
+        # TODO - implement some form of signal handling, in order to call cleanup functions when force-closing the program
