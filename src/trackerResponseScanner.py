@@ -1,5 +1,6 @@
 from typing import List, Final, Tuple
 from bencode3 import bdecode
+import utils
 from domain.peer import Peer
 
 
@@ -49,7 +50,8 @@ class TrackerResponseScanner:
     @staticmethod
     def __scanTrackerResponseDictionaryModel(responseBytes: bytes) -> Tuple[dict, List[Peer]]:
         decoded: dict = bdecode(responseBytes)
-        peerList: List[Peer] = [Peer(peer[TrackerResponseScanner.PEER_IP_KEY_DICT_MODEL], peer[TrackerResponseScanner.PEER_PORT_KEY_DICT_MODEL]) for peer in decoded[TrackerResponseScanner.PEERS_DICT_KEY]]
+        peerList: List[Peer] = [Peer(utils.convertIPFromStringToInt(peer[TrackerResponseScanner.PEER_IP_KEY_DICT_MODEL]), peer[TrackerResponseScanner.PEER_PORT_KEY_DICT_MODEL])
+                                for peer in decoded[TrackerResponseScanner.PEERS_DICT_KEY]]
         decoded.pop(TrackerResponseScanner.PEERS_DICT_KEY)
         return decoded, peerList
 
