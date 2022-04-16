@@ -105,7 +105,7 @@ class ProcessSingleTorrent:
 
         try:
             message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
-            MessageProcessor(otherPeer).processMessage(message)
+            MessageProcessor(otherPeer).processMessage(message, self.__downloadSession)
             print(f"{message} - {otherPeer.getIPRepresentedAsString()}")
         except Exception as e:
             print(e)

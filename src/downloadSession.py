@@ -72,3 +72,10 @@ class DownloadSession:
         if blockAndPeer is not None:
             await RequestMessage(blockAndPeer[0].pieceIndex, blockAndPeer[0].beginOffset, blockAndPeer[0].length).send(blockAndPeer[1])
             print(f"Requested - {blockAndPeer[0]}")
+
+    @property
+    def pieces(self) -> List[Piece]:
+        return self.__pieces
+
+    def getPieceHash(self, pieceIndex: int) -> bytes:
+        return self.__scanner.getPieceHash(pieceIndex)

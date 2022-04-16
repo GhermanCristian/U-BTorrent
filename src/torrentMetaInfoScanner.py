@@ -1,6 +1,7 @@
-import hashlib, math
-from bencode3 import bdecode, bencode
+import hashlib
+import math
 from typing import List, Final
+from bencode3 import bdecode, bencode
 from domain.file import File
 
 
@@ -90,6 +91,9 @@ class TorrentMetaInfoScanner:
 
     def getPieces(self) -> bytes:
         return self.__pieces
+
+    def getPieceHash(self, pieceIndex: int) -> bytes:
+        return self.__pieces[pieceIndex * 20: (pieceIndex + 1) * 20]
 
     def getFiles(self) -> List[File]:
         return self.__files
