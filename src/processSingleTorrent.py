@@ -17,9 +17,10 @@ from trackerConnection import TrackerConnection
 class ProcessSingleTorrent:
     ATTEMPTS_TO_CONNECT_TO_PEER: Final[int] = 3
     MESSAGE_ID_LENGTH: Final[int] = 1
+    DOWNLOAD_LOCATION: Final[str] = "Resources\\Downloads"
 
     def __init__(self, torrentFileName: str):
-        self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFileName)
+        self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFileName, self.DOWNLOAD_LOCATION)
         trackerConnection: TrackerConnection = TrackerConnection()
         trackerConnection.makeTrackerRequest(self.__scanner.getAnnounceURL(), self.__scanner.getInfoHash(), self.__scanner.getTotalContentSize())
         self.__peerList: List[Peer] = trackerConnection.peerList
@@ -28,7 +29,6 @@ class ProcessSingleTorrent:
         self.__peerID: str = TrackerConnection.PEER_ID
         self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__infoHash, self.__peerID)
         self.__handshakeResponseValidator: HandshakeResponseValidator = HandshakeResponseValidator(self.__infoHash, HandshakeMessage.CURRENT_PROTOCOL)
-        self.__downloadSession: DownloadSession = DownloadSession(self.__scanner, self.__peerList)
 
     """
     Attempts to read byteCount bytes. If too many empty messages are read in a row, the reading is aborted
@@ -113,8 +113,8 @@ class ProcessSingleTorrent:
         return True
 
     async def __makeDownloadRequests(self) -> None:
-        while True:
-            await asyncio.sleep(1)
+        while True:  # TODO - add stopping condition
+            await asyncio.sleep(0.15)
             await self.__downloadSession.requestBlock()
 
     async def __startPeer(self, otherPeer) -> None:
@@ -135,6 +135,7 @@ class ProcessSingleTorrent:
         if len(self.__peerList) == 0:
             return
 
+        self.__downloadSession: DownloadSession = DownloadSession(self.__scanner, self.__peerList)
         coroutineList: List[Coroutine] = [self.__startPeer(otherPeer) for otherPeer in self.__peerList]
         coroutineList.append(self.__makeDownloadRequests())
         await asyncio.gather(*coroutineList)

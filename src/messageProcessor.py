@@ -47,13 +47,14 @@ class MessageProcessor:
         if not piece.isComplete:
             return
 
+        print("complete piece")
         actualPieceHash: bytes = piece.infoHash
         expectedPieceHash: bytes = downloadSession.getPieceHash(pieceIndex)
-        if actualPieceHash != expectedPieceHash:
+        if actualPieceHash == expectedPieceHash:
+            downloadSession.putPieceInWritingQueue(piece)
+        else:  # TODO - re-request this piece ? or is it done by default bc it goes over all pieces anyway
             piece.clear()
-            return
-
-        # add piece to queue
+        return
 
     def processMessage(self, message: MessageWithLengthAndID, downloadSession: DownloadSession) -> None:
         if isinstance(message, BitfieldMessage):
