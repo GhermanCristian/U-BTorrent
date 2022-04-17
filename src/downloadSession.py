@@ -5,6 +5,7 @@ from domain.message.requestMessage import RequestMessage
 from domain.peer import Peer
 from domain.piece import Piece
 from torrentMetaInfoScanner import TorrentMetaInfoScanner
+from torrentSaver import TorrentSaver
 
 
 class DownloadSession:
@@ -16,6 +17,7 @@ class DownloadSession:
         self.__otherPeers: List[Peer] = otherPeers
         self.__currentPieceIndex: int = 0
         self.__currentBlockIndex: int = 0
+        self.__torrentSaver: TorrentSaver = TorrentSaver(self.__scanner)
 
     @staticmethod
     def __generateBlocksForPiece(pieceIndex: int, blocksInPiece: int, blockLength: int, finalBlockLength: int) -> List[Block]:
@@ -79,3 +81,6 @@ class DownloadSession:
 
     def getPieceHash(self, pieceIndex: int) -> bytes:
         return self.__scanner.getPieceHash(pieceIndex)
+
+    def putPieceInWritingQueue(self, piece: Piece) -> None:
+        self.__torrentSaver.putPieceInQueue(piece)
