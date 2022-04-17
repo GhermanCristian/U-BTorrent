@@ -14,5 +14,8 @@ class File:
     def __str__(self) -> str:
         return self.__path + "; size=" + str(self.__length) + "B"
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return isinstance(other, File) and self.__path == other.path and self.__length == other.length
+
+    def __hash__(self) -> int:
+        return hash((self.__path, self.__length))
