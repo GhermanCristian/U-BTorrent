@@ -47,12 +47,13 @@ class MessageProcessor:
         if not piece.isComplete:
             return
 
-        print("complete piece")
         actualPieceHash: bytes = piece.infoHash
         expectedPieceHash: bytes = downloadSession.getPieceHash(pieceIndex)
         if actualPieceHash == expectedPieceHash:
             downloadSession.putPieceInWritingQueue(piece)
-        else:  # TODO - re-request this piece ? or is it done by default bc it goes over all pieces anyway
+        else:
+            # there's no need to re-request this - the piece will be marked as incomplete, so it will be "caught"
+            # in the next search loop of the download session
             piece.clear()
         return
 

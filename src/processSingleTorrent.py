@@ -21,11 +21,13 @@ class ProcessSingleTorrent:
 
     def __init__(self, torrentFileName: str):
         self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFileName, self.DOWNLOAD_LOCATION)
+        self.__infoHash: bytes = self.__scanner.infoHash
+        
         trackerConnection: TrackerConnection = TrackerConnection()
-        trackerConnection.makeTrackerRequest(self.__scanner.getAnnounceURL(), self.__scanner.getInfoHash(), self.__scanner.getTotalContentSize())
+        trackerConnection.makeTrackerRequest(self.__scanner.announceURL, self.__scanner.infoHash, self.__scanner.getTotalContentSize())
         self.__peerList: List[Peer] = trackerConnection.peerList
         self.__host: Final[Peer] = trackerConnection.host
-        self.__infoHash: bytes = self.__scanner.getInfoHash()
+        
         self.__peerID: str = TrackerConnection.PEER_ID
         self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__infoHash, self.__peerID)
         self.__handshakeResponseValidator: HandshakeResponseValidator = HandshakeResponseValidator(self.__infoHash, HandshakeMessage.CURRENT_PROTOCOL)
@@ -71,7 +73,7 @@ class ProcessSingleTorrent:
             await otherPeer.closeConnection()
         return False
 
-    async def __closeAllConnections(self) -> None:
+    async def __closeAllActiveConnections(self) -> None:
         await asyncio.gather(*[
             peer.closeConnection() for peer in self.__peerList if peer.hasActiveConnection()
         ])
@@ -112,12 +114,12 @@ class ProcessSingleTorrent:
 
         return True
 
-    async def __makeDownloadRequests(self) -> None:
+    async def __requestNextBlocks(self) -> None:
         while True:  # TODO - add stopping condition
             await asyncio.sleep(0.15)
-            await self.__downloadSession.requestBlock()
+            await self.__downloadSession.requestNextBlock()
 
-    async def __startPeer(self, otherPeer) -> None:
+    async def __exchangeMessagesWithPeer(self, otherPeer) -> None:
         if not await self.__attemptToConnectToPeer(otherPeer):
             return
 
@@ -127,7 +129,7 @@ class ProcessSingleTorrent:
             if not await self.__readMessage(otherPeer):
                 await otherPeer.closeConnection()
 
-    async def __peerCommunication(self) -> None:
+    async def __startTorrentDownload(self) -> None:
         try:
             self.__peerList.remove(self.__host)
         except ValueError:
@@ -136,15 +138,15 @@ class ProcessSingleTorrent:
             return
 
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner, self.__peerList)
-        coroutineList: List[Coroutine] = [self.__startPeer(otherPeer) for otherPeer in self.__peerList]
-        coroutineList.append(self.__makeDownloadRequests())
+        coroutineList: List[Coroutine] = [self.__exchangeMessagesWithPeer(otherPeer) for otherPeer in self.__peerList]
+        coroutineList.append(self.__requestNextBlocks())
         await asyncio.gather(*coroutineList)
-        await self.__closeAllConnections()
+        await self.__closeAllActiveConnections()
 
     """
     Wrapper for the method which communicates with the peers
     """
     def start(self) -> None:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # due to issues with closing the event loop in windows
-        asyncio.run(self.__peerCommunication())
+        asyncio.run(self.__startTorrentDownload())
         # TODO - implement some form of signal handling, in order to call cleanup functions when force-closing the program

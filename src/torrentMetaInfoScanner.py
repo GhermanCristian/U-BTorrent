@@ -38,15 +38,19 @@ class TorrentMetaInfoScanner:
     """
     Determines if the current torrent contains multiple files or just one
     @:param info - dictionary with information about the torrent content
-    @:return true, if the torrent contains multiple files; false, otherwise
+    @:return True, if the torrent contains multiple files; False, otherwise
     """
     def __multipleFileMode(self, info: dict) -> bool:
         return self.FILES_KEY in info.keys()
 
+    """
+    Creates a folder in which the downloaded content will be stored;
+    This should only be called for multiple-file torrents; if the location already exists, nothing happens
+    """
     def __createRootDownloadFolder(self) -> None:
         try:
             os.mkdir(self.__rootFolder)
-        except FileExistsError as e:
+        except FileExistsError:
             pass
 
     """
@@ -57,12 +61,13 @@ class TorrentMetaInfoScanner:
             content: dict = bdecode(torrentFile.read())
             self.__announceURL: str = content[self.ANNOUNCE_KEY]
             self.__announceURLList: List[str] = content[self.ANNOUNCE_LIST_KEY]
+            # TODO - consider the case where the announceURL list is not in the .torrent file
 
             info: dict = content[self.INFO_KEY]
             self.__infoHash: bytes = hashlib.sha1(bencode(info)).digest()
             self.__torrentName: str = info[self.TORRENT_NAME_KEY]  # in single-file mode, this becomes the name of the file itself
             self.__rootFolder = os.path.join(self.__rootFolder, self.__torrentName)
-            self.__pieceLength: int = int(info[self.PIECE_LENGTH_KEY])
+            self.__regularPieceLength: int = int(info[self.PIECE_LENGTH_KEY])
             self.__pieces: bytes = info[self.PIECES_KEY]
             if self.__multipleFileMode(info):
                 self.__createRootDownloadFolder()
@@ -71,35 +76,44 @@ class TorrentMetaInfoScanner:
             else:
                 self.__files.append(File(self.__rootFolder, info[self.SINGLE_FILE_MODE_LENGTH_KEY]))
 
-    def getAnnounceURL(self) -> str:
+    @property
+    def announceURL(self) -> str:
         return self.__announceURL
 
-    def getAnnounceURLList(self) -> List[str]:
+    @property
+    def announceURLList(self) -> List[str]:
         return self.__announceURLList
 
-    def getTorrentName(self) -> str:
+    @property
+    def torrentName(self) -> str:
         return self.__torrentName
 
-    def getPieceLength(self) -> int:
-        return self.__pieceLength
+    @property
+    def regularPieceLength(self) -> int:
+        return self.__regularPieceLength
 
-    def getPieceCount(self) -> int:
-        return math.ceil(self.getTotalContentSize() / self.__pieceLength)
+    @property
+    def pieceCount(self) -> int:
+        return math.ceil(self.getTotalContentSize() / self.__regularPieceLength)
 
-    def getFinalPieceLength(self) -> int:
-        return self.getTotalContentSize() % self.__pieceLength
+    @property
+    def finalPieceLength(self) -> int:
+        return self.getTotalContentSize() % self.__regularPieceLength
 
-    def getPieces(self) -> bytes:
+    @property
+    def pieces(self) -> bytes:
         return self.__pieces
 
-    def getPieceHash(self, pieceIndex: int) -> bytes:
-        return self.__pieces[pieceIndex * 20: (pieceIndex + 1) * 20]
-
-    def getFiles(self) -> List[File]:
+    @property
+    def files(self) -> List[File]:
         return self.__files
 
-    def getInfoHash(self) -> bytes:
+    @property
+    def infoHash(self) -> bytes:
         return self.__infoHash
 
     def getTotalContentSize(self) -> int:
         return sum(file.length for file in self.__files)
+
+    def getPieceHash(self, pieceIndex: int) -> bytes:
+        return self.__pieces[pieceIndex * 20: (pieceIndex + 1) * 20]

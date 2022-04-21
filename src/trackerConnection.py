@@ -62,6 +62,7 @@ class TrackerConnection:
                 except Exception as e:
                     print("Error - ", e)
             payload[self.PAYLOAD_PORT_KEY] += 1  # try the next port
+        # TODO - if the connection cannot be established with the current tracker address, try the others from the announceURL list
 
         print("Could not connect to the tracker")
 
