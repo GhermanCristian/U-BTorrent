@@ -53,6 +53,9 @@ class TorrentMetaInfoScanner:
         except FileExistsError:
             pass
 
+    def removeRootDownloadFolder(self) -> None:
+        os.rmdir(self.__rootFolder)
+
     """
     Decodes a torrent meta info file, and loads in memory all the necessary fields
     """

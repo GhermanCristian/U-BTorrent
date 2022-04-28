@@ -17,7 +17,7 @@ from trackerConnection import TrackerConnection
 class ProcessSingleTorrent:
     ATTEMPTS_TO_CONNECT_TO_PEER: Final[int] = 3
     MESSAGE_ID_LENGTH: Final[int] = 1
-    DOWNLOAD_LOCATION: Final[str] = "Resources\\Downloads"
+    DOWNLOAD_LOCATION: Final[str] = "..\\Resources\\Downloads"
 
     def __init__(self, torrentFileName: str):
         self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFileName, self.DOWNLOAD_LOCATION)
