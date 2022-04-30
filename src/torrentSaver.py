@@ -68,7 +68,7 @@ class TorrentSaver:
     @:return True, if the data is successfully written to disk, False otherwise
     """
     def __writePieceSectionToDisk(self, file: File, piece: Piece, fileStartOffset: int, pieceStartOffset: int, pieceSectionLength: int) -> bool:
-        fileDescriptor: int = os.open(file.path, os.O_RDWR | os.O_CREAT)
+        fileDescriptor: int = os.open(file.path, os.O_RDWR | os.O_CREAT | os.O_BINARY)
         newPosition: int = os.lseek(fileDescriptor, fileStartOffset, os.SEEK_SET)
         if newPosition != fileStartOffset:
             os.close(fileDescriptor)
@@ -90,5 +90,6 @@ class TorrentSaver:
             fileListWithOffsets: List[Tuple[File, int, int, int]] = self.__determineFilesWhichContainPiece(piece)
             for file, fileStartOffset, pieceStartOffset, pieceSectionLength in fileListWithOffsets:
                 while not self.__writePieceSectionToDisk(file, piece, fileStartOffset, pieceStartOffset, pieceSectionLength):
+                    print("Writing failed. Trying again")
                     pass
             piece.clear()
