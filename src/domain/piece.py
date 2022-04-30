@@ -42,7 +42,7 @@ class Piece:
         return hashlib.sha1(self.data).digest()
 
     @property
-    def isComplete(self) -> bool:
+    def isDownloadComplete(self) -> bool:
         return all([block.isComplete for block in self.__blocks])
 
     @property

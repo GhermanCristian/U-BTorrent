@@ -43,14 +43,14 @@ class MessageProcessor:
 
         piece: Piece = downloadSession.pieces[pieceIndex]
         piece.writeDataToBlock(utils.convert4ByteBigEndianToInteger(message.beginOffset), message.block)
-
-        if not piece.isComplete:
+        if not piece.isDownloadComplete:
             return
 
         actualPieceHash: bytes = piece.infoHash
         expectedPieceHash: bytes = downloadSession.getPieceHash(pieceIndex)
         if actualPieceHash == expectedPieceHash:
             downloadSession.putPieceInWritingQueue(piece)
+            downloadSession.markPieceAsDownloaded(piece)
         else:
             # there's no need to re-request this - the piece will be marked as incomplete, so it will be "caught"
             # in the next search loop of the download session

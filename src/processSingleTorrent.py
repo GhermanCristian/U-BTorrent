@@ -115,8 +115,8 @@ class ProcessSingleTorrent:
         return True
 
     async def __requestNextBlocks(self) -> None:
-        while True:  # TODO - add stopping condition
-            await asyncio.sleep(0.15)
+        while not self.__downloadSession.isDownloaded():
+            await asyncio.sleep(0.1)
             await self.__downloadSession.requestNextBlock()
 
     async def __exchangeMessagesWithPeer(self, otherPeer) -> None:

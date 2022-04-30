@@ -1,4 +1,5 @@
 from typing import List, Final, Tuple
+from bitarray import bitarray
 from domain.block import Block
 from domain.message.requestMessage import RequestMessage
 from domain.peer import Peer
@@ -12,6 +13,8 @@ class DownloadSession:
     def __init__(self, scanner: TorrentMetaInfoScanner, otherPeers: List[Peer]):
         self.__scanner: TorrentMetaInfoScanner = scanner
         self.__pieces: List[Piece] = PieceGenerator(scanner).generatePiecesWithBlocks()
+        self.__downloadedPieces: bitarray = bitarray()
+        self.__downloadedPieces = [piece.isDownloadComplete for piece in self.__pieces]
         self.__otherPeers: List[Peer] = otherPeers
         self.__currentPieceIndex: int = 0
         self.__currentBlockIndex: int = 0
@@ -37,7 +40,7 @@ class DownloadSession:
     def __determineNextBlockToRequest(self) -> Tuple[Block, Peer] | None:
         while self.__currentPieceIndex < len(self.__pieces):
             piece: Piece = self.__pieces[self.__currentPieceIndex]
-            if not piece.isComplete:
+            if not piece.isDownloadComplete:
                 peerWithPiece: Peer | None = self.__getPeerWithPiece(self.__currentPieceIndex)
                 if peerWithPiece is not None:
                     while self.__currentBlockIndex < len(piece.blocks):
@@ -73,3 +76,9 @@ class DownloadSession:
 
     def putPieceInWritingQueue(self, piece: Piece) -> None:
         self.__torrentSaver.putPieceInQueue(piece)
+
+    def markPieceAsDownloaded(self, piece: Piece) -> None:
+        self.__downloadedPieces[piece.index] = True
+
+    def isDownloaded(self) -> bool:
+        return all(self.__downloadedPieces)
