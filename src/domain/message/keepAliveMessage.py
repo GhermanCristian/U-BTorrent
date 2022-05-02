@@ -11,4 +11,3 @@ class KeepAliveMessage(Message):
 
     def getMessageContent(self) -> bytes:
         return self.__content
-

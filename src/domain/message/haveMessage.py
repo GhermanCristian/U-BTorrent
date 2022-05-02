@@ -5,7 +5,8 @@ from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 
 class HaveMessage(MessageWithLengthAndID):
     MESSAGE_ID: Final[int] = 4
-    LENGTH_PREFIX: Final[int] = 5  # messageID = 1B; pieceIndex = 4B
+    PIECE_INDEX_LENGTH: Final[int] = 4  # bytes
+    LENGTH_PREFIX: Final[int] = utils.MESSAGE_ID_LENGTH + PIECE_INDEX_LENGTH
 
     def __init__(self, pieceIndex: int = 0):
         # pieceIndex is 0-indexed

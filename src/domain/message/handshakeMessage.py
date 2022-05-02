@@ -7,7 +7,6 @@ class HandshakeMessage(Message):
     CURRENT_PROTOCOL: Final[bytes] = b"BitTorrent protocol"
     CURRENT_PROTOCOL_LENGTH: Final[bytes] = utils.convertIntegerTo1Byte(len(CURRENT_PROTOCOL))
     RESERVED_HANDSHAKE_MESSAGE_BYTES: Final[bytes] = b"00000000"
-    HANDSHAKE_LENGTH: Final[int] = 68
 
     def __init__(self, infoHash: bytes, peerID: str):
         self.__infoHash: bytes = infoHash
