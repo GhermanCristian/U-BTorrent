@@ -1,5 +1,6 @@
 from typing import List, Final, Tuple
 from bitarray import bitarray
+import utils
 from domain.block import Block
 from domain.message.cancelMessage import CancelMessage
 from domain.message.requestMessage import RequestMessage
@@ -73,7 +74,7 @@ class DownloadSession:
                 if otherPeer.blocksRequestedFromPeer[blockIndex].pieceIndex == pieceIndex and otherPeer.blocksRequestedFromPeer[blockIndex].beginOffset == beginOffset:
                     if otherPeer != sender:
                         await CancelMessage(pieceIndex, beginOffset, otherPeer.blocksRequestedFromPeer[blockIndex].length).send(otherPeer)
-                        print(f"Canceled - {otherPeer.getIPRepresentedAsString()}, index = {pieceIndex}, offset = {beginOffset}")
+                        print(f"Canceled - {utils.convertIPFromIntToString(otherPeer.IP)}, index = {pieceIndex}, offset = {beginOffset}")
                     otherPeer.blocksRequestedFromPeer.pop(blockIndex)
                     break
 

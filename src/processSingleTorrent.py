@@ -21,16 +21,15 @@ class ProcessSingleTorrent:
 
     def __init__(self, torrentFileName: str):
         self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFileName, self.DOWNLOAD_LOCATION)
-        self.__infoHash: bytes = self.__scanner.infoHash
-        
-        trackerConnection: TrackerConnection = TrackerConnection()
-        trackerConnection.makeTrackerRequest(self.__scanner.announceURL, self.__scanner.infoHash, self.__scanner.getTotalContentSize())
-        self.__peerList: List[Peer] = trackerConnection.peerList
-        self.__host: Final[Peer] = trackerConnection.host
-        
         self.__peerID: str = TrackerConnection.PEER_ID
-        self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__infoHash, self.__peerID)
-        self.__handshakeResponseValidator: HandshakeResponseValidator = HandshakeResponseValidator(self.__infoHash, HandshakeMessage.CURRENT_PROTOCOL)
+        self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__scanner.infoHash, self.__peerID)
+        self.__handshakeResponseValidator: HandshakeResponseValidator = HandshakeResponseValidator(self.__scanner.infoHash, HandshakeMessage.CURRENT_PROTOCOL)
+
+    async def __makeTrackerConnection(self) -> None:
+        trackerConnection: TrackerConnection = TrackerConnection()
+        await trackerConnection.makeTrackerRequest(self.__scanner.announceURL, self.__scanner.infoHash, self.__scanner.getTotalContentSize())
+        self.__peerList: List[Peer] = trackerConnection.peerList
+        self.__host: Peer = trackerConnection.host
 
     """
     Attempts to read byteCount bytes. If too many empty messages are read in a row, the reading is aborted
@@ -63,7 +62,7 @@ class ProcessSingleTorrent:
     async def __attemptToConnectToPeer(self, otherPeer: Peer) -> bool:
         for attempt in range(self.ATTEMPTS_TO_CONNECT_TO_PEER):
             try:
-                otherPeer.streamReader, otherPeer.streamWriter = await asyncio.open_connection(otherPeer.getIPRepresentedAsString(), otherPeer.port)
+                otherPeer.streamReader, otherPeer.streamWriter = await asyncio.open_connection(utils.convertIPFromIntToString(otherPeer.IP), otherPeer.port)
                 await self.__handshakeMessage.send(otherPeer)
                 handshakeResponse: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, HandshakeMessage.HANDSHAKE_LENGTH)
                 if self.__handshakeResponseValidator.validateHandshakeResponse(handshakeResponse):
@@ -91,10 +90,10 @@ class ProcessSingleTorrent:
             return False
 
         if len(lengthPrefix) == 0:
-            print(f"nothing was read - {otherPeer.getIPRepresentedAsString()}")
+            print(f"nothing was read - {utils.convertIPFromIntToString(otherPeer.IP)}")
             return True
         if lengthPrefix == utils.convertIntegerTo4ByteBigEndian(0):
-            print(f"keep alive message - {otherPeer.getIPRepresentedAsString()}")
+            print(f"keep alive message - {utils.convertIPFromIntToString(otherPeer.IP)}")
             return True
 
         messageID: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, self.MESSAGE_ID_LENGTH)
@@ -102,13 +101,13 @@ class ProcessSingleTorrent:
         payload: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, payloadLength)
 
         if messageID == utils.convertIntegerTo1Byte(20):
-            print(f"Extended protocol - ignored for now - {otherPeer.getIPRepresentedAsString()}")
+            print(f"Extended protocol - ignored for now - {utils.convertIPFromIntToString(otherPeer.IP)}")
             return True
 
         try:
             message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
             await MessageProcessor(otherPeer).processMessage(message, self.__downloadSession, otherPeer)
-            print(f"{message} - {otherPeer.getIPRepresentedAsString()}")
+            print(f"{message} - {utils.convertIPFromIntToString(otherPeer.IP)}")
         except Exception as e:
             print(e)
 
@@ -132,6 +131,8 @@ class ProcessSingleTorrent:
                 await otherPeer.closeConnection()
 
     async def __startTorrentDownload(self) -> None:
+        await self.__makeTrackerConnection()
+
         try:
             self.__peerList.remove(self.__host)
         except ValueError:

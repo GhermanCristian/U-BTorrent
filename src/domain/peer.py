@@ -98,15 +98,8 @@ class Peer:
     def hasActiveConnection(self) -> bool:
         return self.__streamReader is not None and self.__streamWriter is not None
 
-    def getIPRepresentedAsString(self) -> str:
-        firstOctet = (self.__IP // 256 ** 3) % 256
-        secondOctet = (self.__IP // 256 ** 2) % 256
-        thirdOctet = (self.__IP // 256 ** 1) % 256
-        fourthOctet = self.__IP % 256
-        return f"""{firstOctet}.{secondOctet}.{thirdOctet}.{fourthOctet}"""
-
     def __str__(self) -> str:
-        return self.getIPRepresentedAsString() + f""":{self.__port};
+        return utils.convertIPFromIntToString(self.__IP) + f""":{self.__port};
             amChokingIt={self.__amChokingIt}; isChokingMe={self.__isChokingMe};
             amInterestedInIt={self.__amInterestedInIt}; isInterestedInMe={self.__isInterestedInMe};"""
 
