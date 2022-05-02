@@ -23,7 +23,7 @@ class DownloadSession:
         self.__torrentSaver: TorrentSaver = TorrentSaver(scanner)
 
     """
-    Finds a peer which contains the specified piece
+    Finds a peer which contains the current piece
     @:return The peer which contains the piece, or None if there are no peers who own that piece
     """
     def __getPeerWithCurrentPiece(self) -> Peer | None:
@@ -53,9 +53,6 @@ class DownloadSession:
         print("Reached the end without getting a block. Starting again")
         self.__currentPieceIndex, self.__currentBlockIndex = 0, 0
 
-    """
-    Requests the next available block, if there is any
-    """
     async def requestNextBlock(self) -> None:
         BLOCK_INDEX_IN_TUPLE: Final[int] = 0
         PEER_INDEX_IN_TUPLE: Final[int] = 1
@@ -63,11 +60,20 @@ class DownloadSession:
         blockAndPeer: Tuple[Block, Peer] | None = self.__determineNextBlockToRequest()
         if blockAndPeer is None:
             return
+        block: Block = blockAndPeer[BLOCK_INDEX_IN_TUPLE]
+        peer: Peer = blockAndPeer[PEER_INDEX_IN_TUPLE]
 
-        await RequestMessage(blockAndPeer[BLOCK_INDEX_IN_TUPLE].pieceIndex, blockAndPeer[BLOCK_INDEX_IN_TUPLE].beginOffset, blockAndPeer[BLOCK_INDEX_IN_TUPLE].length).send(blockAndPeer[PEER_INDEX_IN_TUPLE])
-        blockAndPeer[PEER_INDEX_IN_TUPLE].blocksRequestedFromPeer.append(blockAndPeer[BLOCK_INDEX_IN_TUPLE])
-        print(f"Requested - {blockAndPeer[BLOCK_INDEX_IN_TUPLE]}")
+        await RequestMessage(block.pieceIndex, block.beginOffset, block.length).send(peer)
+        peer.blocksRequestedFromPeer.append(block)
+        print(f"Requested - {block}")
 
+    """
+    Sends CancelMessages to all peers to which a request has been made for a given block (excluding the peer which answered the request).
+    It also removes the block from the list of requested blocks for all peers (including the sender)
+    @:param pieceIndex - index of the piece to which the block belongs
+    @:param beginOffset - offset of the block inside its piece
+    @:param sender - the peer who answered the PieceRequest
+    """
     async def cancelRequestsToOtherPeers(self, pieceIndex: int, beginOffset: int, sender: Peer) -> None:
         for otherPeer in self.__otherPeers:
             for blockIndex in range(len(otherPeer.blocksRequestedFromPeer)):

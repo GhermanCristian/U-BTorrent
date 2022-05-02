@@ -45,13 +45,11 @@ class TorrentSaver:
 
             if pieceStartOffset < currentFileStartOffset and currentFileEndOffset <= pieceEndOffset:  # entire file is inside the piece
                 fileListWithOffsets.append((file, 0, currentFileStartOffset - pieceStartOffset, file.length))
-
             elif currentFileStartOffset <= pieceStartOffset < currentFileEndOffset:
                 if currentFileStartOffset < pieceEndOffset <= currentFileEndOffset:  # entire piece is inside a file
                     fileListWithOffsets.append((file, pieceStartOffset - currentFileStartOffset, 0, pieceLength))
                 else:  # just the start is inside file
                     fileListWithOffsets.append((file, pieceStartOffset - currentFileStartOffset, 0, currentFileEndOffset - pieceStartOffset))
-
             elif currentFileStartOffset < pieceEndOffset <= currentFileEndOffset:  # just the end is inside file
                 fileListWithOffsets.append((file, 0, pieceLength + currentFileStartOffset - pieceEndOffset, pieceEndOffset - currentFileStartOffset))
 
@@ -84,12 +82,10 @@ class TorrentSaver:
         while True:
             piece: Piece = await self.__piecesQueue.get()
             if not piece:
-                print("Bad piece")
                 return
 
             fileListWithOffsets: List[Tuple[File, int, int, int]] = self.__determineFilesWhichContainPiece(piece)
             for file, fileStartOffset, pieceStartOffset, pieceSectionLength in fileListWithOffsets:
                 while not self.__writePieceSectionToDisk(file, piece, fileStartOffset, pieceStartOffset, pieceSectionLength):
-                    print("Writing failed. Trying again")
                     pass
             piece.clear()

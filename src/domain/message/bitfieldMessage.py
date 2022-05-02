@@ -1,11 +1,12 @@
 from typing import Final
+import utils
 from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 from bitarray import bitarray
 
 
 class BitfieldMessage(MessageWithLengthAndID):
     MESSAGE_ID: Final[int] = 5
-    BASE_LENGTH_PREFIX: Final[int] = 1  # messageID = 1B;
+    BASE_LENGTH_PREFIX: Final[int] = utils.MESSAGE_ID_LENGTH
 
     def __init__(self, bitfield: bitarray = bitarray()):
         super().__init__(self.BASE_LENGTH_PREFIX + len(bitfield), self.MESSAGE_ID)

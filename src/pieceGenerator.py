@@ -6,8 +6,6 @@ from torrentMetaInfoScanner import TorrentMetaInfoScanner
 
 
 class PieceGenerator:
-    BLOCK_REQUEST_SIZE: Final[int] = 16384  # 2 ^ 14 bytes
-
     def __init__(self, scanner: TorrentMetaInfoScanner):
         self.__scanner: TorrentMetaInfoScanner = scanner
 
@@ -30,11 +28,13 @@ class PieceGenerator:
     @:return the list of pieces
     """
     def generatePiecesWithBlocks(self) -> List[Piece]:
+        BLOCK_REQUEST_SIZE: Final[int] = 16384  # 2 ^ 14 bytes
+
         pieceCount: int = self.__scanner.pieceCount
         pieceLength: int = self.__scanner.regularPieceLength
         finalPieceLength: int = self.__scanner.finalPieceLength
 
-        blockLength: int = self.BLOCK_REQUEST_SIZE
+        blockLength: int = BLOCK_REQUEST_SIZE
         blocksInPiece: int = math.ceil(pieceLength / blockLength)
         finalBlockLength: int = pieceLength % blockLength
         if finalBlockLength == 0:

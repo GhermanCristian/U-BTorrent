@@ -1,4 +1,5 @@
 from typing import Dict, Type
+import utils
 from domain.message.bitfieldMessage import BitfieldMessage
 from domain.message.cancelMessage import CancelMessage
 from domain.message.chokeMessage import ChokeMessage
@@ -25,7 +26,7 @@ class MessageWithLengthAndIDFactory:
             PieceMessage.MESSAGE_ID: PieceMessage,
             CancelMessage.MESSAGE_ID: CancelMessage
         }
-        messageIDAsInt: int = int.from_bytes(messageID, "big")
+        messageIDAsInt: int = utils.convertByteToInteger(messageID)
         if messageIDAsInt not in IDToClassDictionary.keys():
             raise Exception("MessageID cannot be mapped to any message type")
         message: MessageWithLengthAndID = IDToClassDictionary[messageIDAsInt]()

@@ -1,5 +1,8 @@
 from asyncio import StreamReader, StreamWriter
-from typing import Tuple
+from typing import Tuple, Final
+
+MESSAGE_ID_LENGTH: Final[int] = 1  # bytes
+HANDSHAKE_MESSAGE_LENGTH: Final[int] = 68  # bytes
 
 
 def convertIntegerTo4ByteBigEndian(intValue: int) -> bytes:

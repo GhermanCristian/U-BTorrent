@@ -56,12 +56,13 @@ class MessageProcessor:
             downloadSession.putPieceInWritingQueue(piece)
             downloadSession.markPieceAsDownloaded(piece)
         else:
-            # there's no need to re-request this - the piece will be marked as incomplete, so it will be "caught"
+            # there's no need to re-request this - the piece will not be marked as complete, so it will be "caught"
             # in the next search loop of the download session
             piece.clear()
         return
 
     async def processMessage(self, message: MessageWithLengthAndID, downloadSession: DownloadSession, sender: Peer) -> None:
+        print(f"{message} - {utils.convertIPFromIntToString(sender.IP)}")
         if isinstance(message, BitfieldMessage):
             self.__bitfieldMessageAction(message)
         elif isinstance(message, HaveMessage):

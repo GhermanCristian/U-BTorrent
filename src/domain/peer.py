@@ -6,7 +6,7 @@ from domain.block import Block
 
 
 class Peer:
-    def __init__(self, IP: int, port: int):
+    def __init__(self, IP: int = 0, port: int = 0):
         # IP + port uniquely determine the peer (for example, __eq__ won't check choking / interested, same for __hash__)
         self.__IP: int = IP
         self.__port: int = port
