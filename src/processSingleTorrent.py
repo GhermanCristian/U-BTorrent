@@ -107,7 +107,7 @@ class ProcessSingleTorrent:
 
         try:
             message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
-            MessageProcessor(otherPeer).processMessage(message, self.__downloadSession)
+            await MessageProcessor(otherPeer).processMessage(message, self.__downloadSession, otherPeer)
             print(f"{message} - {otherPeer.getIPRepresentedAsString()}")
         except Exception as e:
             print(e)
@@ -115,8 +115,10 @@ class ProcessSingleTorrent:
         return True
 
     async def __requestNextBlocks(self) -> None:
-        while not self.__downloadSession.isDownloaded():
-            await asyncio.sleep(0.1)
+        while True:
+            await asyncio.sleep(0.015)
+            if self.__downloadSession.isDownloaded():
+                return
             await self.__downloadSession.requestNextBlock()
 
     async def __exchangeMessagesWithPeer(self, otherPeer) -> None:

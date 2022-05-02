@@ -36,12 +36,16 @@ class MessageProcessor:
     def __notInterestedMessageAction(self) -> None:
         self.__otherPeer.isInterestedInMe = False
 
-    def __pieceMessageAction(self, message: PieceMessage, downloadSession: DownloadSession) -> None:
+    async def __pieceMessageAction(self, message: PieceMessage, downloadSession: DownloadSession, sender: Peer) -> None:
         pieceIndex: int = utils.convert4ByteBigEndianToInteger(message.pieceIndex)
         if pieceIndex >= len(downloadSession.pieces) or pieceIndex < 0:
             return
 
         piece: Piece = downloadSession.pieces[pieceIndex]
+        if piece.isDownloadComplete:
+            return
+
+        await downloadSession.cancelRequestsToOtherPeers(utils.convert4ByteBigEndianToInteger(message.pieceIndex), utils.convert4ByteBigEndianToInteger(message.beginOffset), sender)
         piece.writeDataToBlock(utils.convert4ByteBigEndianToInteger(message.beginOffset), message.block)
         if not piece.isDownloadComplete:
             return
@@ -57,7 +61,7 @@ class MessageProcessor:
             piece.clear()
         return
 
-    def processMessage(self, message: MessageWithLengthAndID, downloadSession: DownloadSession) -> None:
+    async def processMessage(self, message: MessageWithLengthAndID, downloadSession: DownloadSession, sender: Peer) -> None:
         if isinstance(message, BitfieldMessage):
             self.__bitfieldMessageAction(message)
         elif isinstance(message, HaveMessage):
@@ -71,4 +75,4 @@ class MessageProcessor:
         elif isinstance(message, NotInterestedMessage):
             self.__notInterestedMessageAction()
         elif isinstance(message, PieceMessage):
-            self.__pieceMessageAction(message, downloadSession)
+            await self.__pieceMessageAction(message, downloadSession, sender)

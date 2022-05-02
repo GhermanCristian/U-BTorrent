@@ -1,6 +1,8 @@
 from asyncio import StreamReader, StreamWriter
+from typing import List
 from bitarray import bitarray
 import utils
+from domain.block import Block
 
 
 class Peer:
@@ -15,6 +17,7 @@ class Peer:
         self.__availablePieces: bitarray = bitarray()
         self.__streamReader: StreamReader | None = None
         self.__streamWriter: StreamWriter | None = None
+        self.__blocksRequestedFromPeer: List[Block] = []
 
     @property
     def IP(self) -> int:
@@ -79,6 +82,10 @@ class Peer:
     @streamWriter.setter
     def streamWriter(self, newWriter: StreamWriter) -> None:
         self.__streamWriter = newWriter
+
+    @property
+    def blocksRequestedFromPeer(self) -> List[Block]:
+        return self.__blocksRequestedFromPeer
 
     async def closeConnection(self) -> None:
         if self.hasActiveConnection():
