@@ -9,7 +9,7 @@ from domain.message.pieceMessage import PieceMessage
 from domain.message.unchokeMessage import UnchokeMessage
 from domain.peer import Peer
 from domain.piece import Piece
-from downloadSession import DownloadSession
+from service.downloadSession import DownloadSession
 
 
 class MessageProcessor:

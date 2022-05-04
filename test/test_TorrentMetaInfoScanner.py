@@ -2,7 +2,7 @@ import os
 import unittest
 from typing import Final
 from domain.file import File
-from torrentMetaInfoScanner import TorrentMetaInfoScanner
+from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 
 
 class TestTorrentMetaInfoScanner(unittest.TestCase):

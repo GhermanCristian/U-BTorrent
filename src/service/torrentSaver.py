@@ -3,7 +3,7 @@ import os
 from typing import List, Tuple
 from domain.file import File
 from domain.piece import Piece
-from torrentMetaInfoScanner import TorrentMetaInfoScanner
+from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 
 
 class TorrentSaver:
@@ -14,6 +14,7 @@ class TorrentSaver:
         self.__regularPieceLength: int = scanner.regularPieceLength
         self.__finalPieceLength: int = scanner.finalPieceLength
         self.__pieceCount: int = scanner.pieceCount
+        self.__isDownloadComplete: bool = False
         self.__task = asyncio.create_task(self.__run())  # store the var reference to avoid the task disappearing mid-execution
 
     """
@@ -21,6 +22,9 @@ class TorrentSaver:
     """
     def putPieceInQueue(self, piece: Piece) -> None:
         self.__piecesQueue.put_nowait(piece)
+
+    def setDownloadComplete(self) -> None:
+        self.__isDownloadComplete = True
 
     """
     Computes a list of files which contain the given piece
@@ -79,7 +83,7 @@ class TorrentSaver:
         return True
 
     async def __run(self) -> None:
-        while True:
+        while not (self.__isDownloadComplete and self.__piecesQueue.empty()):
             piece: Piece = await self.__piecesQueue.get()
             if not piece:
                 return

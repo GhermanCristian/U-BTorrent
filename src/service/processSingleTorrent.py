@@ -8,11 +8,11 @@ from domain.message.keepAliveMessage import KeepAliveMessage
 from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 from domain.peer import Peer
 from domain.validator.handshakeMessageValidator import HandshakeMessageValidator
-from downloadSession import DownloadSession
-from messageProcessor import MessageProcessor
-from messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
-from torrentMetaInfoScanner import TorrentMetaInfoScanner
-from trackerConnection import TrackerConnection
+from service.downloadSession import DownloadSession
+from service.messageProcessor import MessageProcessor
+from service.messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
+from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
+from service.trackerConnection import TrackerConnection
 
 
 class ProcessSingleTorrent:
@@ -118,6 +118,7 @@ class ProcessSingleTorrent:
         while True:
             await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
             if self.__downloadSession.isDownloaded():
+                self.__downloadSession.setDownloadCompleteInTorrentSaver()
                 return
             await self.__downloadSession.requestNextBlock()
 

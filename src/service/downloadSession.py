@@ -6,9 +6,9 @@ from domain.message.cancelMessage import CancelMessage
 from domain.message.requestMessage import RequestMessage
 from domain.peer import Peer
 from domain.piece import Piece
-from pieceGenerator import PieceGenerator
-from torrentMetaInfoScanner import TorrentMetaInfoScanner
-from torrentSaver import TorrentSaver
+from service.pieceGenerator import PieceGenerator
+from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
+from service.torrentSaver import TorrentSaver
 
 
 class DownloadSession:
@@ -93,6 +93,9 @@ class DownloadSession:
 
     def putPieceInWritingQueue(self, piece: Piece) -> None:
         self.__torrentSaver.putPieceInQueue(piece)
+
+    def setDownloadCompleteInTorrentSaver(self) -> None:
+        self.__torrentSaver.setDownloadComplete()
 
     def markPieceAsDownloaded(self, piece: Piece) -> None:
         self.__downloadedPieces[piece.index] = True

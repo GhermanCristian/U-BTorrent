@@ -1,4 +1,4 @@
-from processSingleTorrent import ProcessSingleTorrent
+from service.processSingleTorrent import ProcessSingleTorrent
 
 
 def main():
