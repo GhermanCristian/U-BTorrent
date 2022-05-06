@@ -112,16 +112,6 @@ class ProcessSingleTorrent:
             print(e)
         return True
 
-    async def __requestNextBlocks(self) -> None:
-        INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second => ~1MBps
-
-        while True:
-            await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
-            if self.__downloadSession.isDownloaded():
-                self.__downloadSession.setDownloadCompleteInTorrentSaver()
-                return
-            await self.__downloadSession.requestNextBlock()
-
     async def __exchangeMessagesWithPeer(self, otherPeer: Peer) -> None:
         if not await self.__attemptToHandshakeWithPeer(otherPeer):
             return
@@ -144,6 +134,6 @@ class ProcessSingleTorrent:
 
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner, self.__peerList)
         coroutineList: List[Coroutine] = [self.__exchangeMessagesWithPeer(otherPeer) for otherPeer in self.__peerList]
-        coroutineList.append(self.__requestNextBlocks())
+        coroutineList.append(self.__downloadSession.requestBlocks())
         await asyncio.gather(*coroutineList)
         await self.__closeAllActiveConnections()

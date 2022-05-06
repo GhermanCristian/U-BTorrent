@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Final, Tuple
 from bitarray import bitarray
 import utils
@@ -21,6 +22,12 @@ class DownloadSession:
         self.__currentPieceIndex: int = 0
         self.__currentBlockIndex: int = 0
         self.__torrentSaver: TorrentSaver = TorrentSaver(scanner)
+
+    def __isDownloaded(self) -> bool:
+        return all(self.__downloadedPieces)
+
+    def __setDownloadCompleteInTorrentSaver(self) -> None:
+        self.__torrentSaver.setDownloadComplete()
 
     """
     Finds a peer which contains the current piece
@@ -53,7 +60,7 @@ class DownloadSession:
         print("Reached the end without getting a block. Starting again")
         self.__currentPieceIndex, self.__currentBlockIndex = 0, 0
 
-    async def requestNextBlock(self) -> None:
+    async def __requestNextBlock(self) -> None:
         BLOCK_INDEX_IN_TUPLE: Final[int] = 0
         PEER_INDEX_IN_TUPLE: Final[int] = 1
 
@@ -66,6 +73,16 @@ class DownloadSession:
         await RequestMessage(block.pieceIndex, block.beginOffset, block.length).send(peer)
         peer.blocksRequestedFromPeer.append(block)
         print(f"Requested - {block}")
+
+    async def requestBlocks(self) -> None:
+        INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second => ~1MBps
+
+        while True:
+            await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
+            if self.__isDownloaded():
+                self.__setDownloadCompleteInTorrentSaver()
+                return
+            await self.__requestNextBlock()
 
     """
     Sends CancelMessages to all peers to which a request has been made for a given block (excluding the peer which answered the request).
@@ -94,11 +111,5 @@ class DownloadSession:
     def putPieceInWritingQueue(self, piece: Piece) -> None:
         self.__torrentSaver.putPieceInQueue(piece)
 
-    def setDownloadCompleteInTorrentSaver(self) -> None:
-        self.__torrentSaver.setDownloadComplete()
-
     def markPieceAsDownloaded(self, piece: Piece) -> None:
         self.__downloadedPieces[piece.index] = True
-
-    def isDownloaded(self) -> bool:
-        return all(self.__downloadedPieces)
