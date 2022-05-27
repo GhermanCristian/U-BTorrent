@@ -1,16 +1,8 @@
-from concurrent.futures import ThreadPoolExecutor
-from service.processSingleTorrent import ProcessSingleTorrent
-
-
-def startTorrent(torrentFileLocation: str) -> None:
-    ProcessSingleTorrent(torrentFileLocation)
+from service.torrentClient import TorrentClient
 
 
 def main():
-    with ThreadPoolExecutor(3) as executor:
-        executor.submit(startTorrent, "..\\Resources\\medical.torrent")
-        executor.submit(startTorrent, "..\\Resources\\mars.torrent")
-        executor.submit(startTorrent, "..\\Resources\\ppcoin.torrent")
+    TorrentClient().start()
 
 
 if __name__ == "__main__":
