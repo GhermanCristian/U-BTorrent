@@ -1,8 +1,8 @@
-from service.processSingleTorrent import ProcessSingleTorrent
+from service.torrentClient import TorrentClient
 
 
 def main():
-    ProcessSingleTorrent("..\\Resources\\thermo.torrent")
+    TorrentClient().start()
 
 
 if __name__ == "__main__":
