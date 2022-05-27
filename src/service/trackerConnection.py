@@ -4,7 +4,7 @@ import requests
 from requests import Response
 import utils
 from domain.peer import Peer
-from trackerResponseScanner import TrackerResponseScanner
+from service.trackerResponseScanner import TrackerResponseScanner
 
 
 class TrackerConnection:

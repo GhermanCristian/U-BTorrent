@@ -8,11 +8,11 @@ from domain.message.keepAliveMessage import KeepAliveMessage
 from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 from domain.peer import Peer
 from domain.validator.handshakeMessageValidator import HandshakeMessageValidator
-from downloadSession import DownloadSession
-from messageProcessor import MessageProcessor
-from messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
-from torrentMetaInfoScanner import TorrentMetaInfoScanner
-from trackerConnection import TrackerConnection
+from service.downloadSession import DownloadSession
+from service.messageProcessor import MessageProcessor
+from service.messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
+from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
+from service.trackerConnection import TrackerConnection
 
 
 class ProcessSingleTorrent:
@@ -112,15 +112,6 @@ class ProcessSingleTorrent:
             print(e)
         return True
 
-    async def __requestNextBlocks(self) -> None:
-        INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second => ~1MBps
-
-        while True:
-            await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
-            if self.__downloadSession.isDownloaded():
-                return
-            await self.__downloadSession.requestNextBlock()
-
     async def __exchangeMessagesWithPeer(self, otherPeer: Peer) -> None:
         if not await self.__attemptToHandshakeWithPeer(otherPeer):
             return
@@ -143,6 +134,6 @@ class ProcessSingleTorrent:
 
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner, self.__peerList)
         coroutineList: List[Coroutine] = [self.__exchangeMessagesWithPeer(otherPeer) for otherPeer in self.__peerList]
-        coroutineList.append(self.__requestNextBlocks())
+        coroutineList.append(self.__downloadSession.requestBlocks())
         await asyncio.gather(*coroutineList)
         await self.__closeAllActiveConnections()

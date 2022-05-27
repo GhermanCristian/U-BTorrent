@@ -2,7 +2,7 @@ import math
 from typing import Final, List
 from domain.block import Block
 from domain.piece import Piece
-from torrentMetaInfoScanner import TorrentMetaInfoScanner
+from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 
 
 class PieceGenerator:
