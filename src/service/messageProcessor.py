@@ -47,6 +47,7 @@ class MessageProcessor:
 
         await downloadSession.cancelRequestsToOtherPeers(utils.convert4ByteBigEndianToInteger(message.pieceIndex), utils.convert4ByteBigEndianToInteger(message.beginOffset), sender)
         piece.writeDataToBlock(utils.convert4ByteBigEndianToInteger(message.beginOffset), message.block)
+        downloadSession.addCompletedBytes(len(message.block))
         if not piece.isDownloadComplete:
             return
 
