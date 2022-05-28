@@ -81,7 +81,7 @@ class DownloadSession:
 
     def __afterTorrentDownloadFinishes(self) -> None:
         self.__setDownloadCompleteInTorrentSaver()
-        self.__sessionMetrics.stopTimer()
+        self.__sessionMetrics.stopAllTimers()
 
     async def requestBlocks(self) -> None:
         INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second => ~1MBps
