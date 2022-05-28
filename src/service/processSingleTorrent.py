@@ -22,10 +22,6 @@ class ProcessSingleTorrent:
         self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFileName, DOWNLOAD_LOCATION)
         self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__scanner.infoHash, TrackerConnection.PEER_ID)
 
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # due to issues with closing the event loop in windows
-        asyncio.run(self.__startTorrentDownload())
-        # TODO - implement some form of signal handling, in order to call cleanup functions when force-closing the program
-
     async def __makeTrackerConnection(self) -> None:
         trackerConnection: TrackerConnection = TrackerConnection()
         await trackerConnection.makeTrackerRequest(self.__scanner.announceURL, self.__scanner.infoHash, self.__scanner.getTotalContentSize())
@@ -122,6 +118,17 @@ class ProcessSingleTorrent:
             if not await self.__readMessage(otherPeer):
                 await otherPeer.closeConnection()
 
+    async def __refreshTimer(self) -> None:
+        REFRESH_INTERVAL_IN_SECONDS: Final[float] = 2  # will be customizable when implementing the GUI
+
+        while not self.__downloadSession.isDownloaded():
+            await asyncio.sleep(REFRESH_INTERVAL_IN_SECONDS)
+            # this will become the "update" of the Observer pattern; it will just pass the GUI to the sessionMetrics object as an argument
+            print(f"{self.__scanner.torrentName}; elapsed time: {self.__downloadSession.sessionMetrics.elapsedTime} s")
+            print(f"{utils.prettyPrintSize(self.__downloadSession.sessionMetrics.downloadSpeed)}/s")
+            print(f"{self.__downloadSession.sessionMetrics.completionPercentage:.2f}%\n")
+        print(f"finished {self.__scanner.torrentName}")
+
     async def __startTorrentDownload(self) -> None:
         await self.__makeTrackerConnection()
 
@@ -135,5 +142,17 @@ class ProcessSingleTorrent:
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner, self.__peerList)
         coroutineList: List[Coroutine] = [self.__exchangeMessagesWithPeer(otherPeer) for otherPeer in self.__peerList]
         coroutineList.append(self.__downloadSession.requestBlocks())
+        coroutineList.append(self.__refreshTimer())
         await asyncio.gather(*coroutineList)
         await self.__closeAllActiveConnections()
+
+    def run(self) -> None:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # due to issues with closing the event loop on Windows
+        # TODO - implement some form of signal handling, in order to call cleanup functions when force-closing the program
+        asyncio.run(self.__startTorrentDownload())
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, self.__class__) and self.__scanner.infoHash == other.__scanner.infoHash
+
+    def __hash__(self) -> int:
+        return hash(self.__scanner.infoHash)

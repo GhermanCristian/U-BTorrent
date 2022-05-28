@@ -23,12 +23,12 @@ class DownloadSession:
         self.__currentPieceIndex: int = 0
         self.__currentBlockIndex: int = 0
         self.__torrentSaver: TorrentSaver = TorrentSaver(scanner)
-        self.__sessionMetrics: SessionMetrics = SessionMetrics(scanner)
+        self.sessionMetrics: SessionMetrics = SessionMetrics(scanner)
 
     def addCompletedBytes(self, increment: int) -> None:
-        self.__sessionMetrics.addCompletedBytes(increment)
+        self.sessionMetrics.addCompletedBytes(increment)
 
-    def __isDownloaded(self) -> bool:
+    def isDownloaded(self) -> bool:
         return all(self.__downloadedPieces)
 
     def __setDownloadCompleteInTorrentSaver(self) -> None:
@@ -81,14 +81,14 @@ class DownloadSession:
 
     def __afterTorrentDownloadFinishes(self) -> None:
         self.__setDownloadCompleteInTorrentSaver()
-        self.__sessionMetrics.stopAllTimers()
+        self.sessionMetrics.stopTimer()
 
     async def requestBlocks(self) -> None:
         INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second => ~1MBps
 
         while True:
             await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
-            if self.__isDownloaded():
+            if self.isDownloaded():
                 self.__afterTorrentDownloadFinishes()
                 return
             await self.__requestNextBlock()

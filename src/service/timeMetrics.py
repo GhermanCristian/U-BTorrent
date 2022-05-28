@@ -40,4 +40,3 @@ class TimeMetrics:
             if self.__elapsedTime % DOWNLOAD_SPEED_INTERVAL == 0:
                 self.__downloadSpeed = self.__downloadedBytesLastInterval / DOWNLOAD_SPEED_INTERVAL
                 self.__downloadedBytesLastInterval = 0
-        print("finished")
