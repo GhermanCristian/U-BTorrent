@@ -37,3 +37,24 @@ def convert4ByteBigEndianToInteger(byteValue: bytes) -> int:
 async def closeConnection(readerWriterTuple: Tuple[StreamReader, StreamWriter]) -> None:
     readerWriterTuple[1].close()
     await readerWriterTuple[1].wait_closed()
+
+
+def prettyPrintSize(byteCount: float) -> str:
+    RATIO: Final[int] = 1024
+
+    KBCount: float = byteCount / RATIO
+    if KBCount < 1.0:
+        return f"{byteCount:.2f}B"
+    
+    MBCount: float = KBCount / RATIO
+    if MBCount < 1.0:
+        return f"{KBCount:.2f}KB"
+    
+    GBCount: float = MBCount / RATIO
+    if GBCount < 1.0:
+        return f"{MBCount:.2f}MB"
+    
+    TBCount: float = GBCount / RATIO
+    if TBCount < 1.0:
+        return f"{GBCount:.2f}GB"
+    return f"{TBCount:.2f}TB"
