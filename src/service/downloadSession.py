@@ -8,7 +8,7 @@ from domain.message.requestMessage import RequestMessage
 from domain.peer import Peer
 from domain.piece import Piece
 from service.pieceGenerator import PieceGenerator
-from service.timeMetrics import TimeMetrics
+from service.sessionMetrics import SessionMetrics
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 from service.torrentSaver import TorrentSaver
 
@@ -23,12 +23,10 @@ class DownloadSession:
         self.__currentPieceIndex: int = 0
         self.__currentBlockIndex: int = 0
         self.__torrentSaver: TorrentSaver = TorrentSaver(scanner)
-        self.__totalCompletedBytes: int = 0
-        self.__timer: TimeMetrics = TimeMetrics()
+        self.__sessionMetrics: SessionMetrics = SessionMetrics(scanner)
 
     def addCompletedBytes(self, increment: int) -> None:
-        self.__totalCompletedBytes += increment
-        self.__timer.downloadedBytesLastInterval += increment
+        self.__sessionMetrics.addCompletedBytes(increment)
 
     def __isDownloaded(self) -> bool:
         return all(self.__downloadedPieces)
@@ -83,7 +81,7 @@ class DownloadSession:
 
     def __afterTorrentDownloadFinishes(self) -> None:
         self.__setDownloadCompleteInTorrentSaver()
-        self.__timer.stopTimer()
+        self.__sessionMetrics.stopTimer()
 
     async def requestBlocks(self) -> None:
         INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second => ~1MBps

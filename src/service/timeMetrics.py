@@ -1,7 +1,6 @@
 import asyncio
 from asyncio import Task
 from typing import Final
-import utils
 
 
 class TimeMetrics:
@@ -9,10 +8,15 @@ class TimeMetrics:
         self.__running: bool = True
         self.__elapsedTime: int = 0  # in seconds
         self.__downloadedBytesLastInterval: int = 0
+        self.__downloadSpeed: float = 0.0  # bytes per second
         self.__task: Task = asyncio.create_task(self.__run())  # store the var reference to avoid the task disappearing mid-execution
 
     def stopTimer(self) -> None:
         self.__running = False
+
+    @property
+    def downloadSpeed(self) -> float:
+        return self.__downloadSpeed
 
     @property
     def elapsedTime(self) -> int:
@@ -34,7 +38,6 @@ class TimeMetrics:
             await asyncio.sleep(SLEEP_INTERVAL_IN_SECONDS)
             self.__elapsedTime += SLEEP_INTERVAL_IN_SECONDS
             if self.__elapsedTime % DOWNLOAD_SPEED_INTERVAL == 0:
-                print(f"{utils.prettyPrintSize(self.__downloadedBytesLastInterval / DOWNLOAD_SPEED_INTERVAL)}/s")
+                self.__downloadSpeed = self.__downloadedBytesLastInterval / DOWNLOAD_SPEED_INTERVAL
                 self.__downloadedBytesLastInterval = 0
-            print(self.__elapsedTime)
         print("finished")
