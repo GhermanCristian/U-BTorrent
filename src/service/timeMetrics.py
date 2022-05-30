@@ -9,7 +9,9 @@ class TimeMetrics:
         self.__elapsedTime: int = 0  # in seconds
         self.__downloadedBytesLastInterval: int = 0
         self.__downloadSpeed: float = 0.0  # bytes per second
-        self.__task: Task = asyncio.create_task(self.__run())  # store the var reference to avoid the task disappearing mid-execution
+
+    def start(self) -> None:
+        task: Task = asyncio.create_task(self.__run())  # store the var reference to avoid the task disappearing mid-execution
 
     def stopTimer(self) -> None:
         self.__running = False

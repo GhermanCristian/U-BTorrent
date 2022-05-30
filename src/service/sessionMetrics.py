@@ -8,6 +8,9 @@ class SessionMetrics:
         self.__totalSize: int = scanner.getTotalContentSize()
         self.__timeMetrics: TimeMetrics = TimeMetrics()
 
+    def start(self) -> None:
+        self.__timeMetrics.start()
+
     def addCompletedBytes(self, increment: int) -> None:
         self.__totalCompletedBytes += increment
         self.__timeMetrics.downloadedBytesLastInterval += increment

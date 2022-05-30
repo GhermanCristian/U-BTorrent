@@ -16,7 +16,9 @@ class TorrentSaver:
         self.__finalPieceLength: int = scanner.finalPieceLength
         self.__pieceCount: int = scanner.pieceCount
         self.__isDownloadComplete: bool = False
-        self.__task: Task = asyncio.create_task(self.__run())  # store the var reference to avoid the task disappearing mid-execution
+
+    def start(self) -> None:
+        task: Task = asyncio.create_task(self.__run())  # store the var reference to avoid the task disappearing mid-execution
 
     """
     Puts the current piece in the queue of pieces to be written to disk
