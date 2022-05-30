@@ -1,10 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Final
 from service.processSingleTorrent import ProcessSingleTorrent
-from service.subject import Subject
 
 
-class TorrentClient(Subject):
+class TorrentClient:
     def __init__(self):
         super().__init__()
         torrentFilePathList: Final[List[str]] = ["..\\Resources\\medical.torrent",
