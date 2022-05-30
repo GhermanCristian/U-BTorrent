@@ -43,15 +43,21 @@ class GUI:
     def __getValuesFromSessionMetrics(self, sessionMetrics: SessionMetrics, currentColumns: List[str]) -> List[str | int]:
         sessionMetricsValues: List[str | int] = []
         if self.COMPLETED_RATIO_COLUMN_NAME in currentColumns:
+            # TODO - make this a progress bar
             sessionMetricsValues.append(f"{sessionMetrics.completionPercentage:.2f}%")
         if self.REMAINING_SIZE_COLUMN_NAME in currentColumns:
             sessionMetricsValues.append(utils.prettyPrintSize(sessionMetrics.remainingBytes))
         if self.TOTAL_SIZE_COLUMN_NAME in currentColumns:
             sessionMetricsValues.append(utils.prettyPrintSize(sessionMetrics.totalSize))
         if self.DOWNLOAD_SPEED_COLUMN_NAME in currentColumns:
-            sessionMetricsValues.append(f"{utils.prettyPrintSize(sessionMetrics.downloadSpeed)}/s")
+            if sessionMetrics.downloadSpeed == 0:
+                sessionMetricsValues.append("-")
+            else:
+                sessionMetricsValues.append(f"{utils.prettyPrintSize(sessionMetrics.downloadSpeed)}/s")
         if self.ETA_COLUMN_NAME in currentColumns:
-            if sessionMetrics.ETA == utils.INFINITY or sessionMetrics.ETA == 0:
+            if sessionMetrics.ETA == utils.INFINITY:
+                sessionMetricsValues.append("∞")
+            elif sessionMetrics.ETA == 0:
                 sessionMetricsValues.append("-")
             else:
                 sessionMetricsValues.append(f"{utils.prettyPrintTime(sessionMetrics.ETA)}")
