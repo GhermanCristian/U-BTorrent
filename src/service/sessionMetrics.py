@@ -1,3 +1,4 @@
+import utils
 from service.timeMetrics import TimeMetrics
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 
@@ -42,3 +43,13 @@ class SessionMetrics:
     @property
     def completionPercentage(self) -> float:
         return self.__totalCompletedBytes / self.__totalSize * 100
+
+    @property
+    def remainingBytes(self) -> int:
+        return self.__totalSize - self.__totalCompletedBytes
+
+    @property
+    def ETA(self) -> int:
+        if self.downloadSpeed == 0:
+            return utils.INFINITY
+        return self.remainingBytes // int(self.downloadSpeed)
