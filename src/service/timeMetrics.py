@@ -34,11 +34,9 @@ class TimeMetrics:
 
     async def __run(self) -> None:
         SLEEP_INTERVAL_IN_SECONDS: Final[int] = 1
-        DOWNLOAD_SPEED_INTERVAL: Final[float] = 1.5
 
         while self.__running:
             await asyncio.sleep(SLEEP_INTERVAL_IN_SECONDS)
             self.__elapsedTime += SLEEP_INTERVAL_IN_SECONDS
-            if self.__elapsedTime % DOWNLOAD_SPEED_INTERVAL == 0:
-                self.__downloadSpeed = self.__downloadedBytesLastInterval / DOWNLOAD_SPEED_INTERVAL
-                self.__downloadedBytesLastInterval = 0
+            self.__downloadSpeed = self.__downloadedBytesLastInterval / SLEEP_INTERVAL_IN_SECONDS
+            self.__downloadedBytesLastInterval = 0
