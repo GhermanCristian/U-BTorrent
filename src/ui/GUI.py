@@ -1,7 +1,9 @@
+import threading
 import tkinter
 from tkinter import *
+from tkinter import filedialog
 from tkinter.ttk import Treeview
-from typing import Final, List
+from typing import Final, List, Tuple
 import utils
 from service.sessionMetrics import SessionMetrics
 from service.torrentClient import TorrentClient
@@ -21,10 +23,12 @@ class GUI:
                                       ETA_COLUMN_NAME,
                                       ELAPSED_TIME_COLUMN_NAME]
 
-    def __init__(self, torrentClient: TorrentClient):
-        self.__torrentClient: TorrentClient = torrentClient
-
+    def __init__(self):
         self.__mainWindow: Tk = self.__createMainWindow()
+        
+        torrentFilesPaths: Tuple[str, ...] = self.__selectTorrentFilesPaths()
+        self.__torrentClient: TorrentClient = TorrentClient(torrentFilesPaths)
+        
         self.__treeView: Treeview = self.__createTreeView()
 
     def __getSessionMetrics(self) -> List[SessionMetrics]:
@@ -39,6 +43,16 @@ class GUI:
         mainWindow.title(WINDOW_TITLE)
         mainWindow.minsize(MIN_WINDOW_WIDTH_IN_PIXELS, MIN_WINDOW_HEIGHT_IN_PIXELS)
         return mainWindow
+
+    def __selectTorrentFilesPaths(self) -> Tuple[str, ...]:
+        INITIAL_DIRECTORY_PATH: Final[str] = "..\\Resources"
+        FILE_DIALOG_TITLE: Final[str] = "Select .torrent files"
+        FILE_TYPE_DESCRIPTION: Final[str] = ".torrent files"
+        DOT_TORRENT_FILE_PATTERN: Final[str] = "*.torrent"
+
+        return filedialog.askopenfilenames(initialdir=INITIAL_DIRECTORY_PATH,
+                                           title=FILE_DIALOG_TITLE,
+                                           filetypes=((FILE_TYPE_DESCRIPTION, DOT_TORRENT_FILE_PATTERN),))
 
     def __getValuesFromSessionMetrics(self, sessionMetrics: SessionMetrics, currentColumns: List[str]) -> List[str | int]:
         sessionMetricsValues: List[str | int] = []
@@ -68,6 +82,7 @@ class GUI:
     def __createTreeView(self) -> Treeview:
         CENTER_ANCHOR: Final[str] = "center"
         MIN_COLUMN_WIDTH_IN_PIXELS: Final[int] = 130
+        MAX_TORRENT_NAME_LENGTH: Final[int] = 100
         
         treeView: Treeview = Treeview(self.__mainWindow, columns=self.COLUMN_NAMES)
         for columnName in self.COLUMN_NAMES:
@@ -75,12 +90,14 @@ class GUI:
             treeView.column(columnName, minwidth=MIN_COLUMN_WIDTH_IN_PIXELS, anchor=CENTER_ANCHOR)
         for sessionMetrics in self.__getSessionMetrics():
             treeView.insert("", tkinter.END, sessionMetrics.torrentName,
-                            text=sessionMetrics.torrentName,  # TODO - change the min width of this column
+                            text=sessionMetrics.torrentName[: MAX_TORRENT_NAME_LENGTH],  # TODO - change the min width of this column
                             values=self.__getValuesFromSessionMetrics(sessionMetrics, self.COLUMN_NAMES))
         treeView.pack(expand=YES, fill=BOTH)
         return treeView
 
     def run(self) -> None:
+        thread = threading.Thread(target=self.__torrentClient.start)
+        thread.start()
         self.__refreshModel()
         self.__mainWindow.mainloop()
 
