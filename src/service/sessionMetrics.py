@@ -5,6 +5,7 @@ from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 class SessionMetrics:
     def __init__(self, scanner: TorrentMetaInfoScanner):
         self.__totalCompletedBytes: int = 0
+        self.__torrentName: str = scanner.torrentName
         self.__totalSize: int = scanner.getTotalContentSize()
         self.__timeMetrics: TimeMetrics = TimeMetrics()
 
@@ -17,6 +18,10 @@ class SessionMetrics:
 
     def stopTimer(self) -> None:
         self.__timeMetrics.stopTimer()
+
+    @property
+    def torrentName(self) -> str:
+        return self.__torrentName
 
     @property
     def downloadSpeed(self) -> float:
