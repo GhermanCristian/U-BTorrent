@@ -1,10 +1,11 @@
 import tkinter
-from tkinter import Tk, YES, BOTH, Menu
+from tkinter import Tk, YES, BOTH
 from tkinter.ttk import Treeview
-from typing import List, Final, Literal
+from typing import List, Final
 import utils
 from service.processSingleTorrent import ProcessSingleTorrent
 from service.sessionMetrics import SessionMetrics
+from ui.contextMenuLogic import ContextMenuLogic
 
 
 class TreeViewLogic:
@@ -25,6 +26,7 @@ class TreeViewLogic:
         self.__mainWindow: Tk = mainWindow
         self.__singleTorrentProcessors: List[ProcessSingleTorrent] = singleTorrentProcessors
         self.__treeView: Treeview = self.__createTreeView()
+        self.__contextMenuLogic: ContextMenuLogic = ContextMenuLogic(self.__treeView, singleTorrentProcessors)
 
     def __getValuesFromSessionMetrics(self, sessionMetrics: SessionMetrics, currentColumns: List[str]) -> List[str | int]:
         sessionMetricsValues: List[str | int] = []
@@ -54,51 +56,6 @@ class TreeViewLogic:
     def __getSessionMetrics(self) -> List[SessionMetrics]:
         return [singleTorrentProcessor.sessionMetrics for singleTorrentProcessor in self.__singleTorrentProcessors]
 
-    def __getSingleTorrentProcessorByTorrentName(self, torrentName: str) -> ProcessSingleTorrent:
-        for singleTorrentProcessor in self.__singleTorrentProcessors:
-            if singleTorrentProcessor.sessionMetrics.torrentName == torrentName:
-                return singleTorrentProcessor
-
-    def __pauseDownloadCommand(self, rowID: str) -> None:
-        print(f"Paused the download of {rowID}")
-        self.__getSingleTorrentProcessorByTorrentName(rowID).pauseDownload()
-
-    def __resumeDownloadCommand(self, rowID: str) -> None:
-        print(f"Resumed the download of {rowID}")
-        self.__getSingleTorrentProcessorByTorrentName(rowID).resumeDownload()
-
-    def __pauseUploadCommand(self, rowID: str) -> None:
-        print(f"Paused the uploade of {rowID}")
-
-    def __resumeUploadCommand(self, rowID: str) -> None:
-        print(f"Resumed the upload of {rowID}")
-
-    def __getCommandPauseDownloadStateFromRowID(self, rowID: str, commandLabel: str) -> Literal["normal", "disabled"]:
-        singleTorrentProcessor: ProcessSingleTorrent = self.__getSingleTorrentProcessorByTorrentName(rowID)
-
-        if (commandLabel == "Pause download" and singleTorrentProcessor.isDownloadPaused) or \
-                (commandLabel == "Resume download" and not singleTorrentProcessor.isDownloadPaused):
-            return "disabled"
-        return "normal"
-
-    def __displayContextMenuForRowID(self, rowID: str, eventXRoot: int, eventYRoot: int) -> None:
-        menu: Menu = Menu(self.__treeView, tearoff=0)
-        menu.add_command(label="Pause download",
-                         command=lambda: self.__pauseDownloadCommand(rowID),
-                         state=self.__getCommandPauseDownloadStateFromRowID(rowID, "Pause download"))
-        menu.add_command(label="Resume download",
-                         command=lambda: self.__resumeDownloadCommand(rowID),
-                         state=self.__getCommandPauseDownloadStateFromRowID(rowID, "Resume download"))
-        menu.add_command(label="Pause upload",
-                         command=lambda: self.__pauseUploadCommand(rowID))
-        menu.add_command(label="Resume upload",
-                         command=lambda: self.__resumeUploadCommand(rowID),
-                         state="disabled")
-        menu.add_separator()
-        menu.add_command(label="Open")
-        menu.add_command(label="Open folder")
-        menu.post(eventXRoot, eventYRoot)
-
     def __rightClickAction(self, event) -> None:
         rowID: str = self.__treeView.identify("item", event.x, event.y)
         if not rowID:
@@ -106,7 +63,7 @@ class TreeViewLogic:
         self.__treeView.selection_set(rowID)
         self.__treeView.focus_set()
         self.__treeView.focus(rowID)
-        self.__displayContextMenuForRowID(rowID, event.x_root, event.y_root)
+        self.__contextMenuLogic.displayContextMenuForRowID(rowID, event.x_root, event.y_root)
 
     def __createTreeView(self) -> Treeview:
         CENTER_ANCHOR: Final[str] = "center"
