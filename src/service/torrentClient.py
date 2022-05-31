@@ -4,8 +4,8 @@ from service.processSingleTorrent import ProcessSingleTorrent
 
 
 class TorrentClient:
-    def __init__(self, torrentFilesPaths: Tuple[str, ...]):
-        self.__singleTorrentProcessors: List[ProcessSingleTorrent] = [ProcessSingleTorrent(path) for path in torrentFilesPaths]
+    def __init__(self, torrentFilesPaths: Tuple[str, ...], downloadLocation: str):
+        self.__singleTorrentProcessors: List[ProcessSingleTorrent] = [ProcessSingleTorrent(path, downloadLocation) for path in torrentFilesPaths]
 
     def start(self) -> None:
         with ThreadPoolExecutor(len(self.__singleTorrentProcessors)) as executor:

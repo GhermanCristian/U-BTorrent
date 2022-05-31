@@ -17,12 +17,10 @@ from service.trackerConnection import TrackerConnection
 
 
 class ProcessSingleTorrent:
-    def __init__(self, torrentFilePath: str):
-        DOWNLOAD_LOCATION: Final[str] = "..\\Resources\\Downloads"  # TODO - choose this in the GUI
-
+    def __init__(self, torrentFilePath: str, downloadLocation: str):
         self.__isDownloadPaused: bool = False
         self.__isUploadPaused: bool = False
-        self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFilePath, DOWNLOAD_LOCATION)
+        self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFilePath, downloadLocation)
         self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__scanner.infoHash, TrackerConnection.PEER_ID)
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner)
 

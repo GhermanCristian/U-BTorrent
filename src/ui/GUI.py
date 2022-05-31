@@ -8,11 +8,15 @@ from ui.treeViewLogic import TreeViewLogic
 
 
 class GUI:
+    INITIAL_DIRECTORY_PATH: Final[str] = "..\\Resources"
+
     def __init__(self):
         self.__mainWindow: Tk = self.__createMainWindow()
         
         torrentFilesPaths: Tuple[str, ...] = self.__selectTorrentFilesPaths()
-        self.__torrentClient: TorrentClient = TorrentClient(torrentFilesPaths)
+        downloadLocation: str = self.__selectBaseDownloadLocation()  # this won't be prompted every time, rather it will be in a settings menu or sth
+        # perhaps store it permanently in a config file or sth ?
+        self.__torrentClient: TorrentClient = TorrentClient(torrentFilesPaths, downloadLocation)
 
         self.__treeViewLogic: TreeViewLogic = TreeViewLogic(self.__mainWindow, self.__torrentClient.singleTorrentProcessors)
         self.__treeView: Treeview = self.__treeViewLogic.treeView
@@ -28,14 +32,18 @@ class GUI:
         return mainWindow
 
     def __selectTorrentFilesPaths(self) -> Tuple[str, ...]:
-        INITIAL_DIRECTORY_PATH: Final[str] = "..\\Resources"
         FILE_DIALOG_TITLE: Final[str] = "Select .torrent files"
         FILE_TYPE_DESCRIPTION: Final[str] = ".torrent files"
         DOT_TORRENT_FILE_PATTERN: Final[str] = "*.torrent"
 
-        return filedialog.askopenfilenames(initialdir=INITIAL_DIRECTORY_PATH,
+        return filedialog.askopenfilenames(initialdir=self.INITIAL_DIRECTORY_PATH,
                                            title=FILE_DIALOG_TITLE,
                                            filetypes=((FILE_TYPE_DESCRIPTION, DOT_TORRENT_FILE_PATTERN),))
+
+    def __selectBaseDownloadLocation(self) -> str:
+        DOWNLOAD_LOCATION_DIALOG_TITLE: Final[str] = "Select the download location"
+        return filedialog.askdirectory(initialdir=self.INITIAL_DIRECTORY_PATH,
+                                       title=DOWNLOAD_LOCATION_DIALOG_TITLE)
 
     def run(self) -> None:
         thread = threading.Thread(target=self.__torrentClient.start)
