@@ -18,9 +18,10 @@ from service.trackerConnection import TrackerConnection
 
 class ProcessSingleTorrent:
     def __init__(self, torrentFilePath: str):
-        DOWNLOAD_LOCATION: Final[str] = "..\\Resources\\Downloads"
+        DOWNLOAD_LOCATION: Final[str] = "..\\Resources\\Downloads"  # TODO - choose this in the GUI
 
         self.__isDownloadPaused: bool = False
+        self.__isUploadPaused: bool = False
         self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFilePath, DOWNLOAD_LOCATION)
         self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__scanner.infoHash, TrackerConnection.PEER_ID)
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner)
@@ -156,6 +157,16 @@ class ProcessSingleTorrent:
 
     def resumeDownload(self) -> None:
         self.__isDownloadPaused = False
+
+    @property
+    def isUploadPaused(self) -> bool:
+        return self.__isUploadPaused
+
+    def pauseUpload(self) -> None:
+        self.__isUploadPaused = True
+
+    def resumeUpload(self) -> None:
+        self.__isUploadPaused = False
 
     def __eq__(self, other) -> bool:
         return isinstance(other, self.__class__) and self.__scanner.infoHash == other.__scanner.infoHash

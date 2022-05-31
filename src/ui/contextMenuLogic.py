@@ -34,15 +34,25 @@ class ContextMenuLogic:
 
     def __pauseUploadCommand(self, rowID: str) -> None:
         print(f"Paused the upload of {rowID}")
+        self.__getSingleTorrentProcessorByTorrentName(rowID).pauseUpload()
 
     def __resumeUploadCommand(self, rowID: str) -> None:
         print(f"Resumed the upload of {rowID}")
+        self.__getSingleTorrentProcessorByTorrentName(rowID).resumeUpload()
 
     def __getCommandPauseDownloadStateFromRowID(self, rowID: str, commandLabel: str) -> Literal["normal", "disabled"]:
         singleTorrentProcessor: ProcessSingleTorrent = self.__getSingleTorrentProcessorByTorrentName(rowID)
 
         if (commandLabel == self.PAUSE_DOWNLOAD_COMMAND_LABEL and singleTorrentProcessor.isDownloadPaused) or \
                 (commandLabel == self.RESUME_DOWNLOAD_COMMAND_LABEL and not singleTorrentProcessor.isDownloadPaused):
+            return self.DISABLED_COMMAND_STATE
+        return self.NORMAL_COMMAND_STATE
+
+    def __getCommandPauseUploadStateFromRowID(self, rowID: str, commandLabel: str) -> Literal["normal", "disabled"]:
+        singleTorrentProcessor: ProcessSingleTorrent = self.__getSingleTorrentProcessorByTorrentName(rowID)
+
+        if (commandLabel == self.PAUSE_UPLOAD_COMMAND_LABEL and singleTorrentProcessor.isUploadPaused) or \
+                (commandLabel == self.RESUME_UPLOAD_COMMAND_LABEL and not singleTorrentProcessor.isUploadPaused):
             return self.DISABLED_COMMAND_STATE
         return self.NORMAL_COMMAND_STATE
 
@@ -55,10 +65,11 @@ class ContextMenuLogic:
                          command=lambda: self.__resumeDownloadCommand(rowID),
                          state=self.__getCommandPauseDownloadStateFromRowID(rowID, self.RESUME_DOWNLOAD_COMMAND_LABEL))
         menu.add_command(label=self.PAUSE_UPLOAD_COMMAND_LABEL,
-                         command=lambda: self.__pauseUploadCommand(rowID))
+                         command=lambda: self.__pauseUploadCommand(rowID),
+                         state=self.__getCommandPauseUploadStateFromRowID(rowID, self.PAUSE_UPLOAD_COMMAND_LABEL))
         menu.add_command(label=self.RESUME_UPLOAD_COMMAND_LABEL,
                          command=lambda: self.__resumeUploadCommand(rowID),
-                         state=self.DISABLED_COMMAND_STATE)
+                         state=self.__getCommandPauseUploadStateFromRowID(rowID, self.RESUME_UPLOAD_COMMAND_LABEL))
         menu.add_separator()
         menu.add_command(label=self.OPEN_COMMAND_LABEL)
         menu.add_command(label=self.OPEN_FOLDER_COMMAND_LABEL)
