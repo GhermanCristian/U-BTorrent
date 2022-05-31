@@ -7,9 +7,19 @@ configParser: ConfigParser = ConfigParser()
 configParser.read(SETTINGS_FILE_PATH)
 
 
+def updateSettingsFile() -> None:
+    with open(SETTINGS_FILE_PATH, "w") as configFile:
+        configParser.write(configFile)
+
+
 def getDownloadLocation() -> str:
-    return configParser["DEFAULT"]["initialDownloadLocation"]
+    return configParser["DEFAULT"]["initial_download_location"]
+
+
+def setDownloadLocation(newDownloadLocation: str) -> None:
+    configParser.set("DEFAULT", "initial_download_location", newDownloadLocation)
+    updateSettingsFile()
 
 
 def getUserInterfaceRefreshRate() -> int:
-    return configParser.getint("DEFAULT", "userInterfaceRefreshRate")
+    return configParser.getint("DEFAULT", "user_interface_refresh_rate_in_milliseconds")

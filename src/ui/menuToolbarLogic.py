@@ -1,5 +1,6 @@
 from tkinter import Menu, Tk
 from typing import Final
+from ui.settingsWindowLogic import SettingsWindowLogic
 
 
 class MenuToolbarLogic:
@@ -7,7 +8,7 @@ class MenuToolbarLogic:
         self.__mainWindow: Tk = mainWindow
 
     def __settingsCommand(self) -> None:
-        pass
+        SettingsWindowLogic(self.__mainWindow)
 
     def __helpCommand(self) -> None:
         pass
