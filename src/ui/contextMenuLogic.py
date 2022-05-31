@@ -25,19 +25,15 @@ class ContextMenuLogic:
                 return singleTorrentProcessor
 
     def __pauseDownloadCommand(self, rowID: str) -> None:
-        print(f"Paused the download of {rowID}")
         self.__getSingleTorrentProcessorByTorrentName(rowID).pauseDownload()
 
     def __resumeDownloadCommand(self, rowID: str) -> None:
-        print(f"Resumed the download of {rowID}")
         self.__getSingleTorrentProcessorByTorrentName(rowID).resumeDownload()
 
     def __pauseUploadCommand(self, rowID: str) -> None:
-        print(f"Paused the upload of {rowID}")
         self.__getSingleTorrentProcessorByTorrentName(rowID).pauseUpload()
 
     def __resumeUploadCommand(self, rowID: str) -> None:
-        print(f"Resumed the upload of {rowID}")
         self.__getSingleTorrentProcessorByTorrentName(rowID).resumeUpload()
 
     def __getCommandPauseDownloadStateFromRowID(self, rowID: str, commandLabel: str) -> Literal["normal", "disabled"]:

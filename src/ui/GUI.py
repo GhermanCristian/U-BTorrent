@@ -4,6 +4,7 @@ from tkinter import filedialog
 from tkinter.ttk import Treeview
 from typing import Final, Tuple
 from service.torrentClient import TorrentClient
+from ui.menuToolbarLogic import MenuToolbarLogic
 from ui.treeViewLogic import TreeViewLogic
 
 
@@ -12,6 +13,8 @@ class GUI:
 
     def __init__(self):
         self.__mainWindow: Tk = self.__createMainWindow()
+        menuBar: Menu = MenuToolbarLogic(self.__mainWindow).createMenuToolbar()
+        self.__mainWindow.config(menu=menuBar)
         
         torrentFilesPaths: Tuple[str, ...] = self.__selectTorrentFilesPaths()
         downloadLocation: str = self.__selectBaseDownloadLocation()  # this won't be prompted every time, rather it will be in a settings menu or sth
@@ -22,7 +25,7 @@ class GUI:
         self.__treeView: Treeview = self.__treeViewLogic.treeView
 
     def __createMainWindow(self) -> Tk:
-        WINDOW_TITLE: Final[str] = "Torrent client"
+        WINDOW_TITLE: Final[str] = "UBTorrent"
         MIN_WINDOW_WIDTH_IN_PIXELS: Final[int] = 640
         MIN_WINDOW_HEIGHT_IN_PIXELS: Final[int] = 480
 
