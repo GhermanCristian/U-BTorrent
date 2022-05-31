@@ -69,6 +69,7 @@ class TreeViewLogic:
         CENTER_ANCHOR: Final[str] = "center"
         MIN_COLUMN_WIDTH_IN_PIXELS: Final[int] = 130
         MAX_TORRENT_NAME_LENGTH: Final[int] = 100
+        RIGHT_CLICK_IDENTIFIER: Final[str] = "<3>"
 
         treeView: Treeview = Treeview(self.__mainWindow, columns=self.COLUMN_NAMES)
         for columnName in self.COLUMN_NAMES:
@@ -79,7 +80,7 @@ class TreeViewLogic:
                             text=sessionMetrics.torrentName[: MAX_TORRENT_NAME_LENGTH],  # TODO - change the min width of this column
                             values=self.__getValuesFromSessionMetrics(sessionMetrics, self.COLUMN_NAMES))
         treeView.pack(expand=YES, fill=BOTH)
-        treeView.bind("<3>", self.__rightClickAction)
+        treeView.bind(RIGHT_CLICK_IDENTIFIER, self.__rightClickAction)
         return treeView
 
     def refreshModel(self):
