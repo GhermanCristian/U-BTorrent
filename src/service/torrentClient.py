@@ -5,7 +5,6 @@ from service.processSingleTorrent import ProcessSingleTorrent
 
 class TorrentClient:
     def __init__(self, torrentFilesPaths: Tuple[str, ...]):
-        super().__init__()
         self.__singleTorrentProcessors: List[ProcessSingleTorrent] = [ProcessSingleTorrent(path) for path in torrentFilesPaths]
 
     def start(self) -> None:

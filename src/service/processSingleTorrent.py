@@ -20,6 +20,7 @@ class ProcessSingleTorrent:
     def __init__(self, torrentFilePath: str):
         DOWNLOAD_LOCATION: Final[str] = "..\\Resources\\Downloads"
 
+        self.__isDownloadPaused: bool = False
         self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFilePath, DOWNLOAD_LOCATION)
         self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__scanner.infoHash, TrackerConnection.PEER_ID)
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner)
@@ -145,6 +146,16 @@ class ProcessSingleTorrent:
     @property
     def sessionMetrics(self) -> SessionMetrics:
         return self.__downloadSession.sessionMetrics
+    
+    @property
+    def isDownloadPaused(self) -> bool:
+        return self.__isDownloadPaused
+    
+    def pauseDownload(self) -> None:
+        self.__isDownloadPaused = True
+
+    def resumeDownload(self) -> None:
+        self.__isDownloadPaused = False
 
     def __eq__(self, other) -> bool:
         return isinstance(other, self.__class__) and self.__scanner.infoHash == other.__scanner.infoHash
