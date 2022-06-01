@@ -24,7 +24,7 @@ class GUI:
         self.__treeView: Treeview = self.__treeViewLogic.treeView
 
     def __createMainWindow(self) -> Tk:
-        WINDOW_TITLE: Final[str] = "UBTorrent"
+        WINDOW_TITLE: Final[str] = "U-BTorrent"
         MIN_WINDOW_WIDTH_IN_PIXELS: Final[int] = 640
         MIN_WINDOW_HEIGHT_IN_PIXELS: Final[int] = 480
 
