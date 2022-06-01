@@ -1,6 +1,6 @@
 import tkinter
 from tkinter import Tk, YES, BOTH
-from tkinter.ttk import Treeview
+from tkinter.ttk import Treeview, Style
 from typing import List, Final
 import utils
 from service.processSingleTorrent import ProcessSingleTorrent
@@ -65,19 +65,33 @@ class TreeViewLogic:
         self.__treeView.focus(rowID)
         self.__contextMenuLogic.displayContextMenuForRowID(rowID, event.x_root, event.y_root)
 
+    def __applyStyle(self) -> None:
+        TREEVIEW_HEADING_FONT_SIZE: Final[int] = 11
+        TREEVIEW_HEADING_IDENTIFIER: Final[str] = "Treeview.Heading"
+        TREEVIEW_CONTENT_FONT_SIZE: Final[int] = 10
+        TREEVIEW_CONTENT_IDENTIFIER: Final[str] = "Treeview"
+
+        style = Style()
+        style.configure(TREEVIEW_HEADING_IDENTIFIER, font=(None, TREEVIEW_HEADING_FONT_SIZE))
+        style.configure(TREEVIEW_CONTENT_IDENTIFIER, font=(None, TREEVIEW_CONTENT_FONT_SIZE))
+
     def __createTreeView(self) -> Treeview:
         CENTER_ANCHOR: Final[str] = "center"
-        MIN_COLUMN_WIDTH_IN_PIXELS: Final[int] = 130
+        MIN_COLUMN_WIDTH_IN_PIXELS: Final[int] = 100
+        MIN_WIDTH_NAME_COLUMN_IN_PIXELS: Final[int] = 200
+        NAME_COLUMN_IDENTIFIER: Final[str] = "#0"
         MAX_TORRENT_NAME_LENGTH: Final[int] = 100
         RIGHT_CLICK_IDENTIFIER: Final[str] = "<3>"
 
         treeView: Treeview = Treeview(self.__mainWindow, columns=self.COLUMN_NAMES)
+        self.__applyStyle()
+        treeView.column(NAME_COLUMN_IDENTIFIER, minwidth=MIN_WIDTH_NAME_COLUMN_IN_PIXELS)
         for columnName in self.COLUMN_NAMES:
             treeView.heading(columnName, text=columnName, anchor=CENTER_ANCHOR)
             treeView.column(columnName, minwidth=MIN_COLUMN_WIDTH_IN_PIXELS, anchor=CENTER_ANCHOR)
         for sessionMetrics in self.__getSessionMetrics():
             treeView.insert("", tkinter.END, sessionMetrics.torrentName,
-                            text=sessionMetrics.torrentName[: MAX_TORRENT_NAME_LENGTH],  # TODO - change the min width of this column
+                            text=sessionMetrics.torrentName[: MAX_TORRENT_NAME_LENGTH],
                             values=self.__getValuesFromSessionMetrics(sessionMetrics, self.COLUMN_NAMES))
         treeView.pack(expand=YES, fill=BOTH)
         treeView.bind(RIGHT_CLICK_IDENTIFIER, self.__rightClickAction)
