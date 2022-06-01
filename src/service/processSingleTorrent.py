@@ -1,5 +1,5 @@
 import asyncio
-from asyncio import StreamReader
+from asyncio import StreamReader, events, AbstractEventLoop
 from typing import List, Final, Coroutine
 import utils
 from domain.message.handshakeMessage import HandshakeMessage
@@ -18,11 +18,12 @@ from service.trackerConnection import TrackerConnection
 
 class ProcessSingleTorrent:
     def __init__(self, torrentFilePath: str, downloadLocation: str):
-        self.__isDownloadPaused: bool = False
-        self.__isUploadPaused: bool = False
         self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFilePath, downloadLocation)
         self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__scanner.infoHash, TrackerConnection.PEER_ID)
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner)
+        # using this instead of the usual asyncio.run(), because of issues when calling create_task from another thread (e.g. from the GUI)
+        self.__eventLoop: AbstractEventLoop = asyncio.new_event_loop()
+        events.set_event_loop(self.__eventLoop)
 
     async def __makeTrackerConnection(self) -> None:
         trackerConnection: TrackerConnection = TrackerConnection()
@@ -140,7 +141,7 @@ class ProcessSingleTorrent:
     def run(self) -> None:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # due to issues with closing the event loop on Windows
         # TODO - implement some form of signal handling, in order to call cleanup functions when force-closing the program
-        asyncio.run(self.__startTorrentDownload())
+        self.__eventLoop.run_until_complete(self.__startTorrentDownload())
 
     @property
     def sessionMetrics(self) -> SessionMetrics:
@@ -148,23 +149,23 @@ class ProcessSingleTorrent:
     
     @property
     def isDownloadPaused(self) -> bool:
-        return self.__isDownloadPaused
-    
-    def pauseDownload(self) -> None:
-        self.__isDownloadPaused = True
-
-    def resumeDownload(self) -> None:
-        self.__isDownloadPaused = False
+        return self.__downloadSession.isDownloadPaused
 
     @property
     def isUploadPaused(self) -> bool:
-        return self.__isUploadPaused
+        return self.__downloadSession.isUploadPaused
+
+    def pauseDownload(self) -> None:
+        self.__eventLoop.create_task(self.__downloadSession.pauseDownload())
+
+    def resumeDownload(self) -> None:
+        self.__eventLoop.create_task(self.__downloadSession.resumeDownload())
 
     def pauseUpload(self) -> None:
-        self.__isUploadPaused = True
+        self.__downloadSession.pauseUpload()
 
     def resumeUpload(self) -> None:
-        self.__isUploadPaused = False
+        self.__downloadSession.resumeUpload()
 
     def __eq__(self, other) -> bool:
         return isinstance(other, self.__class__) and self.__scanner.infoHash == other.__scanner.infoHash

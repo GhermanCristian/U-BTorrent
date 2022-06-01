@@ -23,6 +23,8 @@ class DownloadSession:
         self.__currentBlockIndex: int = 0
         self.__torrentSaver: TorrentSaver = TorrentSaver(scanner)
         self.__sessionMetrics: SessionMetrics = SessionMetrics(scanner)
+        self.__isDownloadPaused: bool = False
+        self.__isUploadPaused: bool = False
 
     def setPeerList(self, peerList: List[Peer]) -> None:
         self.__otherPeers.clear()
@@ -89,9 +91,9 @@ class DownloadSession:
         self.__sessionMetrics.stopTimer()
 
     async def requestBlocks(self) -> None:
-        INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second => ~1MBps
+        INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second
 
-        while True:
+        while not self.__isDownloadPaused:
             await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
             if self.isDownloaded():
                 self.__afterTorrentDownloadFinishes()
@@ -114,6 +116,12 @@ class DownloadSession:
                     otherPeer.blocksRequestedFromPeer.pop(blockIndex)
                     break
 
+    async def __cancelAllRequests(self) -> None:
+        for otherPeer in self.__otherPeers:
+            for block in otherPeer.blocksRequestedFromPeer:
+                await CancelMessage(block.pieceIndex, block.beginOffset, block.length).send(otherPeer)
+            otherPeer.blocksRequestedFromPeer.clear()
+
     @property
     def pieces(self) -> List[Piece]:
         return self.__pieces
@@ -121,6 +129,31 @@ class DownloadSession:
     @property
     def sessionMetrics(self) -> SessionMetrics:
         return self.__sessionMetrics
+
+    @property
+    def isDownloadPaused(self) -> bool:
+        return self.__isDownloadPaused
+
+    @property
+    def isUploadPaused(self) -> bool:
+        return self.__isUploadPaused
+
+    async def pauseDownload(self) -> None:
+        """To keep in mind - there was a bug where I downloaded 100.2% after a pause-resume;
+        also TODO - re-query the tracker when resuming (+ new handshakes etc), because some peers might disconnect
+        in the meantime, especially if the pause takes a long time"""
+        self.__isDownloadPaused = True
+        await self.__cancelAllRequests()
+
+    async def resumeDownload(self) -> None:
+        self.__isDownloadPaused = False
+        await self.requestBlocks()
+
+    def pauseUpload(self) -> None:
+        self.__isUploadPaused = True
+
+    def resumeUpload(self) -> None:
+        self.__isUploadPaused = False
 
     def getPieceHash(self, pieceIndex: int) -> bytes:
         return self.__scanner.getPieceHash(pieceIndex)
