@@ -6,10 +6,10 @@ import utils
 from service.processSingleTorrent import ProcessSingleTorrent
 from service.sessionMetrics import SessionMetrics
 from ui import utilsGUI
-from ui.contextMenuLogic import ContextMenuLogic
+from ui.contextMenu import ContextMenu
 
 
-class TreeViewLogic:
+class TorrentList:
     COMPLETED_RATIO_COLUMN_NAME: Final[str] = "Completed"
     TOTAL_SIZE_COLUMN_NAME: Final[str] = "Size"
     REMAINING_SIZE_COLUMN_NAME: Final[str] = "Remaining"
@@ -27,7 +27,7 @@ class TreeViewLogic:
         self.__mainWindow: Tk = mainWindow
         self.__singleTorrentProcessors: List[ProcessSingleTorrent] = singleTorrentProcessors
         self.__treeView: Treeview = self.__createTreeView()
-        self.__contextMenuLogic: ContextMenuLogic = ContextMenuLogic(self.__treeView, singleTorrentProcessors)
+        self.__contextMenuLogic: ContextMenu = ContextMenu(self.__treeView, singleTorrentProcessors)
 
     def __getValuesFromSessionMetrics(self, sessionMetrics: SessionMetrics, currentColumns: List[str]) -> List[str | int]:
         sessionMetricsValues: List[str | int] = []

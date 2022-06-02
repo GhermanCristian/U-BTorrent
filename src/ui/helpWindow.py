@@ -2,7 +2,7 @@ from tkinter import Toplevel, Tk
 from typing import Final
 
 
-class HelpWindowLogic:
+class HelpWindow:
     def __init__(self, mainWindow: Tk):
         self.__helpWindow: Toplevel = self.__createHelpWindow(mainWindow)
 

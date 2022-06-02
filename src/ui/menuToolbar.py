@@ -1,19 +1,19 @@
 from tkinter import Menu, Tk
 from typing import Final
 from ui import utilsGUI
-from ui.HelpWindowLogic import HelpWindowLogic
-from ui.settingsWindowLogic import SettingsWindowLogic
+from ui.helpWindow import HelpWindow
+from ui.settingsWindow import SettingsWindow
 
 
-class MenuToolbarLogic:
+class MenuToolbar:
     def __init__(self, mainWindow: Tk):
         self.__mainWindow: Tk = mainWindow
 
     def __settingsCommand(self) -> None:
-        SettingsWindowLogic(self.__mainWindow)
+        SettingsWindow(self.__mainWindow)
 
     def __helpCommand(self) -> None:
-        HelpWindowLogic(self.__mainWindow)
+        HelpWindow(self.__mainWindow)
 
     def __aboutUBTorrentCommand(self) -> None:
         pass

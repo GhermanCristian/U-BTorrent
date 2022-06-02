@@ -5,7 +5,7 @@ from service.processSingleTorrent import ProcessSingleTorrent
 from ui import utilsGUI
 
 
-class ContextMenuLogic:
+class ContextMenu:
     PAUSE_DOWNLOAD_COMMAND_LABEL: Final[str] = "Pause download"
     RESUME_DOWNLOAD_COMMAND_LABEL: Final[str] = "Resume download"
     PAUSE_UPLOAD_COMMAND_LABEL: Final[str] = "Pause upload"

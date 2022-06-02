@@ -5,7 +5,7 @@ from service import settingsProcessor
 from ui import utilsGUI
 
 
-class SettingsWindowLogic:
+class SettingsWindow:
     X_PADDING: Final[int] = 15
     Y_PADDING: Final[int] = 15
     NORMAL_FONT_SIZE: Final[int] = 12

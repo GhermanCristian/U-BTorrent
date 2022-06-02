@@ -6,8 +6,8 @@ from typing import Final, Tuple
 from service import settingsProcessor
 from service.torrentClient import TorrentClient
 from ui import utilsGUI
-from ui.menuToolbarLogic import MenuToolbarLogic
-from ui.treeViewLogic import TreeViewLogic
+from ui.menuToolbar import MenuToolbar
+from ui.torrentList import TorrentList
 
 
 class GUI:
@@ -15,13 +15,13 @@ class GUI:
 
     def __init__(self):
         self.__mainWindow: Tk = self.__createMainWindow()
-        menuBar: Menu = MenuToolbarLogic(self.__mainWindow).createMenuToolbar()
+        menuBar: Menu = MenuToolbar(self.__mainWindow).createMenuToolbar()
         self.__mainWindow.config(menu=menuBar)
         
         torrentFilesPaths: Tuple[str, ...] = self.__selectTorrentFilesPaths()
         self.__torrentClient: TorrentClient = TorrentClient(torrentFilesPaths, settingsProcessor.getDownloadLocation())
 
-        self.__treeViewLogic: TreeViewLogic = TreeViewLogic(self.__mainWindow, self.__torrentClient.singleTorrentProcessors)
+        self.__treeViewLogic: TorrentList = TorrentList(self.__mainWindow, self.__torrentClient.singleTorrentProcessors)
         self.__treeView: Treeview = self.__treeViewLogic.treeView
 
     def __createMainWindow(self) -> Tk:
