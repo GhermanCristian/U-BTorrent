@@ -3,6 +3,7 @@ from typing import Final
 from ui import utilsGUI
 from ui.aboutUBTorrentWindow import AboutUBTorrentWindow
 from ui.helpWindow import HelpWindow
+from ui.sendFeedbackWindow import SendFeedbackWindow
 from ui.settingsWindow import SettingsWindow
 
 
@@ -20,7 +21,7 @@ class MenuToolbar:
         AboutUBTorrentWindow(self.__mainWindow)
 
     def __sendFeedbackCommand(self) -> None:
-        pass
+        SendFeedbackWindow(self.__mainWindow)
 
     def createMenuToolbar(self) -> Menu:
         SETTINGS_COMMAND_LABEL: Final[str] = "Settings"
