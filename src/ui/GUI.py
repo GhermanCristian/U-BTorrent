@@ -50,6 +50,7 @@ class GUI:
         thread.start()
         self.__refreshModel()
         self.__mainWindow.mainloop()
+        thread.join()
 
     def __refreshModel(self) -> None:
         self.__treeViewLogic.refreshModel()
