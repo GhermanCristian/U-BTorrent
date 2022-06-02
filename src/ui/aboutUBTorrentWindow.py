@@ -43,6 +43,6 @@ HAIDE U!"""
               font=(utilsGUI.FONT_NAME, self.NORMAL_FONT_SIZE),
               width=self.WINDOW_SIZE_IN_PIXELS,
               anchor=self.CENTER_ANCHOR).pack(side=BOTTOM,
-                                    padx=self.X_PADDING,
-                                    pady=self.Y_PADDING)
+                                              padx=self.X_PADDING,
+                                              pady=self.Y_PADDING)
 
