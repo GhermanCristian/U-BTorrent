@@ -28,10 +28,12 @@ class GUI:
         WINDOW_TITLE: Final[str] = "U-BTorrent"
         MIN_WINDOW_WIDTH_IN_PIXELS: Final[int] = 960
         MIN_WINDOW_HEIGHT_IN_PIXELS: Final[int] = 480
+        APPLY_TO_ALL_WINDOWS: Final[bool] = True
 
         mainWindow: Tk = Tk()
         mainWindow.title(WINDOW_TITLE)
         mainWindow.minsize(MIN_WINDOW_WIDTH_IN_PIXELS, MIN_WINDOW_HEIGHT_IN_PIXELS)
+        mainWindow.iconphoto(APPLY_TO_ALL_WINDOWS, PhotoImage(file=utilsGUI.LOGO_PATH))
         return mainWindow
 
     def __selectTorrentFilesPaths(self) -> Tuple[str, ...]:
