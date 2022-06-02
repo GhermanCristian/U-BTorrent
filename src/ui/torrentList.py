@@ -22,6 +22,8 @@ class TorrentList:
                                       DOWNLOAD_SPEED_COLUMN_NAME,
                                       ETA_COLUMN_NAME,
                                       ELAPSED_TIME_COLUMN_NAME]
+    NAME_COLUMN_IDENTIFIER: Final[str] = "#0"
+    ROOT_PARENT: Final[str] = ""
 
     def __init__(self, mainWindow: Tk, singleTorrentProcessors: List[ProcessSingleTorrent]):
         self.__mainWindow: Tk = mainWindow
@@ -72,16 +74,22 @@ class TorrentList:
         return [(self.__getValueFromSessionMetrics(sessionMetrics, columnName), sessionMetrics.torrentName) for sessionMetrics in self.__getSessionMetrics()]
 
     def __sortColumn(self, treeView: Treeview, columnName: str, reverse: bool) -> None:
-        ROOT_PARENT: Final[str] = ""
-
         valuesWithRowNames: List[Tuple[int | float, str]] = self.__getValuesAndRowNamesForColumn(columnName)
         valuesWithRowNames.sort(reverse=reverse)
-        for index, (val, item) in enumerate(valuesWithRowNames):
-            treeView.move(item, ROOT_PARENT, index)
+        for index, (val, rowName) in enumerate(valuesWithRowNames):
+            treeView.move(rowName, self.ROOT_PARENT, index)
         # next time this column is clicked, perform the inverse of the current operation
         treeView.heading(columnName,
                          text=columnName,
                          command=lambda colName=columnName: self.__sortColumn(treeView, colName, not reverse))
+
+    def __sortNameColumn(self, treeView: Treeview, reverse: bool) -> None:
+        columnNames: List[str] = [sessionMetrics.torrentName for sessionMetrics in self.__getSessionMetrics()]
+        columnNames.sort(reverse=reverse)
+        for index, rowName in enumerate(columnNames):
+            treeView.move(rowName, self.ROOT_PARENT, index)
+        treeView.heading(self.NAME_COLUMN_IDENTIFIER,
+                         command=lambda: self.__sortNameColumn(treeView, not reverse))
 
     def __rightClickAction(self, event) -> None:
         rowID: str = self.__treeView.identify("item", event.x, event.y)
@@ -105,25 +113,23 @@ class TorrentList:
                         font=(utilsGUI.FONT_NAME, TREEVIEW_CONTENT_FONT_SIZE))
 
     def __addColumns(self, treeView: Treeview) -> None:
-        CENTER_ANCHOR: Final[str] = "center"
         MIN_COLUMN_WIDTH_IN_PIXELS: Final[int] = 100
         MIN_WIDTH_NAME_COLUMN_IN_PIXELS: Final[int] = 200
-        NAME_COLUMN_IDENTIFIER: Final[str] = "#0"
         MAX_TORRENT_NAME_LENGTH: Final[int] = 100
 
-        treeView.column(NAME_COLUMN_IDENTIFIER,
+        treeView.column(self.NAME_COLUMN_IDENTIFIER,
                         minwidth=MIN_WIDTH_NAME_COLUMN_IN_PIXELS)
+        treeView.heading(self.NAME_COLUMN_IDENTIFIER, command=lambda: self.__sortNameColumn(treeView, False))
         for columnName in self.COLUMN_NAMES:
-            # TODO - also sort the name column
             treeView.heading(columnName,
                              text=columnName,
-                             anchor=CENTER_ANCHOR,
+                             anchor=utilsGUI.CENTER_ANCHOR,
                              command=lambda colName=columnName: self.__sortColumn(treeView, colName, False))
             treeView.column(columnName,
                             minwidth=MIN_COLUMN_WIDTH_IN_PIXELS,
-                            anchor=CENTER_ANCHOR)
+                            anchor=utilsGUI.CENTER_ANCHOR)
         for sessionMetrics in self.__getSessionMetrics():
-            treeView.insert("", tkinter.END, sessionMetrics.torrentName,
+            treeView.insert(self.ROOT_PARENT, tkinter.END, sessionMetrics.torrentName,
                             text=sessionMetrics.torrentName[: MAX_TORRENT_NAME_LENGTH],
                             values=self.__getValuesFromSessionMetricsInViewForm(sessionMetrics, self.COLUMN_NAMES))
 
