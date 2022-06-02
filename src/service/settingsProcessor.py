@@ -31,3 +31,8 @@ def setDownloadLocation(newDownloadLocation: str) -> None:
 
 def getUserInterfaceRefreshRate() -> int:
     return configParser.getint(DEFAULT_SECTION_NAME, USER_INTERFACE_REFRESH_RATE_IN_MILLISECONDS)
+
+
+def setUserInterfaceRefreshRate(newRefreshRate: str) -> None:
+    configParser.set(DEFAULT_SECTION_NAME, USER_INTERFACE_REFRESH_RATE_IN_MILLISECONDS, newRefreshRate)
+    updateSettingsFile()

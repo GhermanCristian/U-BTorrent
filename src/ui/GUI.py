@@ -5,12 +5,13 @@ from tkinter.ttk import Treeview
 from typing import Final, Tuple
 from service import settingsProcessor
 from service.torrentClient import TorrentClient
+from ui import utilsGUI
 from ui.menuToolbarLogic import MenuToolbarLogic
 from ui.treeViewLogic import TreeViewLogic
 
 
 class GUI:
-    INITIAL_DIRECTORY_PATH: Final[str] = "..\\Resources"
+    REFRESH_INTERVAL_IN_MILLISECONDS: Final[int] = settingsProcessor.getUserInterfaceRefreshRate()
 
     def __init__(self):
         self.__mainWindow: Tk = self.__createMainWindow()
@@ -38,7 +39,7 @@ class GUI:
         FILE_TYPE_DESCRIPTION: Final[str] = ".torrent files"
         DOT_TORRENT_FILE_PATTERN: Final[str] = "*.torrent"
 
-        return filedialog.askopenfilenames(initialdir=self.INITIAL_DIRECTORY_PATH,
+        return filedialog.askopenfilenames(initialdir=utilsGUI.INITIAL_DIRECTORY_PATH,
                                            title=FILE_DIALOG_TITLE,
                                            filetypes=((FILE_TYPE_DESCRIPTION, DOT_TORRENT_FILE_PATTERN),))
 
@@ -49,6 +50,5 @@ class GUI:
         self.__mainWindow.mainloop()
 
     def __refreshModel(self) -> None:
-        REFRESH_INTERVAL_IN_MILLISECONDS: Final[int] = settingsProcessor.getUserInterfaceRefreshRate()
         self.__treeViewLogic.refreshModel()
-        self.__mainWindow.after(REFRESH_INTERVAL_IN_MILLISECONDS, self.__refreshModel)
+        self.__mainWindow.after(self.REFRESH_INTERVAL_IN_MILLISECONDS, self.__refreshModel)
