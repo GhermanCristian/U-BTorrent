@@ -21,6 +21,7 @@ class MenuToolbarLogic:
         HELP_COMMAND_LABEL: Final[str] = "Help"
         ABOUT_COMMAND_LABEL: Final[str] = "About"
 
+        # can't change the menu style bc Windows
         menuBar: Menu = Menu(self.__mainWindow)
         menuBar.add_command(label=SETTINGS_COMMAND_LABEL, command=self.__settingsCommand)
         menuBar.add_command(label=HELP_COMMAND_LABEL, command=self.__helpCommand)

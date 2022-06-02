@@ -23,7 +23,6 @@ class ProcessSingleTorrent:
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner)
         # using this instead of the usual asyncio.run(), because of issues when calling create_task from another thread (e.g. from the GUI)
         self.__eventLoop: AbstractEventLoop = asyncio.new_event_loop()
-        events.set_event_loop(self.__eventLoop)
 
     async def __makeTrackerConnection(self) -> None:
         trackerConnection: TrackerConnection = TrackerConnection()
@@ -139,6 +138,7 @@ class ProcessSingleTorrent:
         await self.__closeAllActiveConnections()
 
     def run(self) -> None:
+        events.set_event_loop(self.__eventLoop)
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # due to issues with closing the event loop on Windows
         # TODO - implement some form of signal handling, in order to call cleanup functions when force-closing the program
         self.__eventLoop.run_until_complete(self.__startTorrentDownload())

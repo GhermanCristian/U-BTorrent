@@ -5,6 +5,7 @@ from typing import List, Final
 import utils
 from service.processSingleTorrent import ProcessSingleTorrent
 from service.sessionMetrics import SessionMetrics
+from ui import utilsGUI
 from ui.contextMenuLogic import ContextMenuLogic
 
 
@@ -71,9 +72,9 @@ class TreeViewLogic:
         TREEVIEW_CONTENT_FONT_SIZE: Final[int] = 10
         TREEVIEW_CONTENT_IDENTIFIER: Final[str] = "Treeview"
 
-        style = Style()
-        style.configure(TREEVIEW_HEADING_IDENTIFIER, font=(None, TREEVIEW_HEADING_FONT_SIZE))
-        style.configure(TREEVIEW_CONTENT_IDENTIFIER, font=(None, TREEVIEW_CONTENT_FONT_SIZE))
+        style: Style = Style()
+        style.configure(TREEVIEW_HEADING_IDENTIFIER, font=(utilsGUI.FONT_NAME, TREEVIEW_HEADING_FONT_SIZE))
+        style.configure(TREEVIEW_CONTENT_IDENTIFIER, font=(utilsGUI.FONT_NAME, TREEVIEW_CONTENT_FONT_SIZE))
 
     def __createTreeView(self) -> Treeview:
         CENTER_ANCHOR: Final[str] = "center"

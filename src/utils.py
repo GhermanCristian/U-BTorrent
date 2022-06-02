@@ -5,7 +5,6 @@ from typing import Tuple, Final
 MESSAGE_ID_LENGTH: Final[int] = 1  # bytes
 HANDSHAKE_MESSAGE_LENGTH: Final[int] = 68  # bytes
 INFINITY: Final[int] = 999999999
-INITIAL_DIRECTORY_PATH: Final[str] = "..\\Resources"
 
 
 def convertIntegerTo4ByteBigEndian(intValue: int) -> bytes:
