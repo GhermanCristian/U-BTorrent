@@ -1,6 +1,7 @@
 from tkinter import Menu, Tk
 from typing import Final
 from ui import utilsGUI
+from ui.aboutUBTorrentWindow import AboutUBTorrentWindow
 from ui.helpWindow import HelpWindow
 from ui.settingsWindow import SettingsWindow
 
@@ -16,7 +17,7 @@ class MenuToolbar:
         HelpWindow(self.__mainWindow)
 
     def __aboutUBTorrentCommand(self) -> None:
-        pass
+        AboutUBTorrentWindow(self.__mainWindow)
 
     def __sendFeedbackCommand(self) -> None:
         pass
