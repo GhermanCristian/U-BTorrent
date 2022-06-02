@@ -2,6 +2,7 @@ from tkinter.ttk import Treeview
 from typing import List, Literal, Final
 from tkinter import Menu
 from service.processSingleTorrent import ProcessSingleTorrent
+from ui import utilsGUI
 
 
 class ContextMenuLogic:
@@ -53,7 +54,7 @@ class ContextMenuLogic:
         return self.NORMAL_COMMAND_STATE
 
     def displayContextMenuForRowID(self, rowID: str, eventXRoot: int, eventYRoot: int) -> None:
-        menu: Menu = Menu(self.__treeView, tearoff=0)
+        menu: Menu = Menu(self.__treeView, tearoff=utilsGUI.NO_MENU_TEAROFF)
         menu.add_command(label=self.PAUSE_DOWNLOAD_COMMAND_LABEL,
                          command=lambda: self.__pauseDownloadCommand(rowID),
                          state=self.__getCommandPauseDownloadStateFromRowID(rowID, self.PAUSE_DOWNLOAD_COMMAND_LABEL))
