@@ -1,7 +1,6 @@
 import asyncio
 from typing import List, Final, Tuple
 from bitarray import bitarray
-import utils
 from domain.block import Block
 from domain.message.cancelMessage import CancelMessage
 from domain.message.requestMessage import RequestMessage
@@ -14,19 +13,29 @@ from service.torrentSaver import TorrentSaver
 
 
 class DownloadSession:
-    def __init__(self, scanner: TorrentMetaInfoScanner, otherPeers: List[Peer]):
+    def __init__(self, scanner: TorrentMetaInfoScanner):
         self.__scanner: TorrentMetaInfoScanner = scanner
         self.__pieces: List[Piece] = PieceGenerator(scanner).generatePiecesWithBlocks()
         self.__downloadedPieces: bitarray = bitarray()
         self.__downloadedPieces = [piece.isDownloadComplete for piece in self.__pieces]
-        self.__otherPeers: List[Peer] = otherPeers
+        self.__otherPeers: List[Peer] = []
         self.__currentPieceIndex: int = 0
         self.__currentBlockIndex: int = 0
         self.__torrentSaver: TorrentSaver = TorrentSaver(scanner)
-        self.sessionMetrics: SessionMetrics = SessionMetrics(scanner)
+        self.__sessionMetrics: SessionMetrics = SessionMetrics(scanner)
+        self.__isDownloadPaused: bool = False
+        self.__isUploadPaused: bool = False
+
+    def setPeerList(self, peerList: List[Peer]) -> None:
+        self.__otherPeers.clear()
+        self.__otherPeers.extend(peerList)
+
+    def start(self) -> None:
+        self.__torrentSaver.start()
+        self.__sessionMetrics.start()
 
     def addCompletedBytes(self, increment: int) -> None:
-        self.sessionMetrics.addCompletedBytes(increment)
+        self.__sessionMetrics.addCompletedBytes(increment)
 
     def isDownloaded(self) -> bool:
         return all(self.__downloadedPieces)
@@ -62,7 +71,6 @@ class DownloadSession:
                             return block, peerWithCurrentPiece
             self.__currentPieceIndex += 1
             self.__currentBlockIndex = 0
-        print("Reached the end without getting a block. Starting again")
         self.__currentPieceIndex, self.__currentBlockIndex = 0, 0
 
     async def __requestNextBlock(self) -> None:
@@ -77,16 +85,15 @@ class DownloadSession:
 
         await RequestMessage(block.pieceIndex, block.beginOffset, block.length).send(peer)
         peer.blocksRequestedFromPeer.append(block)
-        print(f"Requested - {block}")
 
     def __afterTorrentDownloadFinishes(self) -> None:
         self.__setDownloadCompleteInTorrentSaver()
-        self.sessionMetrics.stopTimer()
+        self.__sessionMetrics.stopTimer()
 
     async def requestBlocks(self) -> None:
-        INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second => ~1MBps
+        INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second
 
-        while True:
+        while not self.__isDownloadPaused:
             await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
             if self.isDownloaded():
                 self.__afterTorrentDownloadFinishes()
@@ -106,13 +113,47 @@ class DownloadSession:
                 if otherPeer.blocksRequestedFromPeer[blockIndex].pieceIndex == pieceIndex and otherPeer.blocksRequestedFromPeer[blockIndex].beginOffset == beginOffset:
                     if otherPeer != sender:
                         await CancelMessage(pieceIndex, beginOffset, otherPeer.blocksRequestedFromPeer[blockIndex].length).send(otherPeer)
-                        print(f"Canceled - {utils.convertIPFromIntToString(otherPeer.IP)}, index = {pieceIndex}, offset = {beginOffset}")
                     otherPeer.blocksRequestedFromPeer.pop(blockIndex)
                     break
+
+    async def __cancelAllRequests(self) -> None:
+        for otherPeer in self.__otherPeers:
+            for block in otherPeer.blocksRequestedFromPeer:
+                await CancelMessage(block.pieceIndex, block.beginOffset, block.length).send(otherPeer)
+            otherPeer.blocksRequestedFromPeer.clear()
 
     @property
     def pieces(self) -> List[Piece]:
         return self.__pieces
+
+    @property
+    def sessionMetrics(self) -> SessionMetrics:
+        return self.__sessionMetrics
+
+    @property
+    def isDownloadPaused(self) -> bool:
+        return self.__isDownloadPaused
+
+    @property
+    def isUploadPaused(self) -> bool:
+        return self.__isUploadPaused
+
+    async def pauseDownload(self) -> None:
+        """To keep in mind - there was a bug where I downloaded 100.2% after a pause-resume;
+        also TODO - re-query the tracker when resuming (+ new handshakes etc), because some peers might disconnect
+        in the meantime, especially if the pause takes a long time"""
+        self.__isDownloadPaused = True
+        await self.__cancelAllRequests()
+
+    async def resumeDownload(self) -> None:
+        self.__isDownloadPaused = False
+        await self.requestBlocks()
+
+    def pauseUpload(self) -> None:
+        self.__isUploadPaused = True
+
+    def resumeUpload(self) -> None:
+        self.__isUploadPaused = False
 
     def getPieceHash(self, pieceIndex: int) -> bytes:
         return self.__scanner.getPieceHash(pieceIndex)

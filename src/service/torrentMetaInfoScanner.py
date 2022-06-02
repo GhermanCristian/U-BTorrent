@@ -9,8 +9,8 @@ from domain.file import File
 class TorrentMetaInfoScanner:
     FILES_KEY: Final[str] = "files"  # this is for the case with multiple files - single files use "length"
 
-    def __init__(self, torrentFileLocation: str, downloadLocation: str):
-        self.__torrentFileLocation: Final[str] = torrentFileLocation
+    def __init__(self, torrentFilePath: str, downloadLocation: str):
+        self.__torrentFilePath: Final[str] = torrentFilePath
         self.__rootFolder: str = downloadLocation
         self.__files: List[File] = []
         self.__decodeTorrentFile()
@@ -61,7 +61,7 @@ class TorrentMetaInfoScanner:
         PIECE_LENGTH_KEY: Final[str] = "piece length"
         PIECES_KEY: Final[str] = "pieces"
 
-        with open(self.__torrentFileLocation, READ_BINARY_MODE) as torrentFile:
+        with open(self.__torrentFilePath, READ_BINARY_MODE) as torrentFile:
             content: dict = bdecode(torrentFile.read())
             self.__announceURL: str = content[ANNOUNCE_KEY]
             self.__announceURLList: List[str] = content[ANNOUNCE_LIST_KEY]

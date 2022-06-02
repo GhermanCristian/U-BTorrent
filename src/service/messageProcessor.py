@@ -63,7 +63,6 @@ class MessageProcessor:
         return
 
     async def processMessage(self, message: MessageWithLengthAndID, downloadSession: DownloadSession, sender: Peer) -> None:
-        print(f"{message} - {utils.convertIPFromIntToString(sender.IP)}")
         if isinstance(message, BitfieldMessage):
             self.__bitfieldMessageAction(message)
         elif isinstance(message, HaveMessage):

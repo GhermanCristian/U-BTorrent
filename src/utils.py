@@ -1,8 +1,10 @@
+import datetime
 from asyncio import StreamReader, StreamWriter
 from typing import Tuple, Final
 
 MESSAGE_ID_LENGTH: Final[int] = 1  # bytes
 HANDSHAKE_MESSAGE_LENGTH: Final[int] = 68  # bytes
+INFINITY: Final[int] = 999999999
 
 
 def convertIntegerTo4ByteBigEndian(intValue: int) -> bytes:
@@ -58,3 +60,7 @@ def prettyPrintSize(byteCount: float) -> str:
     if TBCount < 1.0:
         return f"{GBCount:.2f}GB"
     return f"{TBCount:.2f}TB"
+
+
+def prettyPrintTime(seconds: int) -> str:
+    return str(datetime.timedelta(seconds=seconds))

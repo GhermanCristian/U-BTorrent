@@ -1,8 +1,8 @@
-from service.torrentClient import TorrentClient
+from ui.GUI import GUI
 
 
 def main():
-    TorrentClient().start()
+    GUI().run()
 
 
 if __name__ == "__main__":
