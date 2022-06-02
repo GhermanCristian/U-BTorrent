@@ -26,6 +26,8 @@ class SettingsWindowLogic:
         self.__createSaveRefreshRateButton()
         self.__displaySeparator(self.REFRESH_RATE_ROW_INDEX + 1)
 
+        self.__createRestartWarningLabel(self.REFRESH_RATE_ROW_INDEX + 2)
+
     def __createSettingsWindow(self, mainWindow: Tk) -> Toplevel:
         SETTINGS_WINDOW_TITLE: Final[str] = "Settings"
         SETTINGS_WINDOW_MIN_WIDTH_IN_PIXELS: Final[int] = 640
@@ -76,7 +78,6 @@ class SettingsWindowLogic:
                                      column=CHOOSE_NEW_LOCATION_BUTTON_COLUMN,
                                      padx=self.X_PADDING,
                                      pady=self.Y_PADDING)
-        # TODO - warning pop-up or just a label that the changes will come into effect after a restart
 
     def __selectBaseDownloadLocation(self) -> str:
         DOWNLOAD_LOCATION_DIALOG_TITLE: Final[str] = "Select the download location"
@@ -145,3 +146,15 @@ class SettingsWindowLogic:
     def __saveRefreshRate(self) -> None:
         newRefreshRate: str = self.__refreshRateEntry.get()
         settingsProcessor.setUserInterfaceRefreshRate(newRefreshRate)
+
+    def __createRestartWarningLabel(self, rowIndex: int) -> None:
+        RESTART_WARNING_LABEL_TEXT: Final[str] = "Any changes made will be applied after restarting the program"
+        RESTART_WARNING_LABEL_COLUMN: Final[int] = 5
+
+        restartWarningLabel: Label = Label(self.__settingsWindow,
+                                           text=RESTART_WARNING_LABEL_TEXT,
+                                           font=(utilsGUI.FONT_NAME, self.NORMAL_FONT_SIZE))
+        restartWarningLabel.grid(row=rowIndex,
+                                 column=RESTART_WARNING_LABEL_COLUMN,
+                                 padx=self.X_PADDING,
+                                 pady=self.Y_PADDING)
