@@ -1,11 +1,13 @@
 import utils
 from domain.message.bitfieldMessage import BitfieldMessage
+from domain.message.cancelMessage import CancelMessage
 from domain.message.chokeMessage import ChokeMessage
 from domain.message.haveMessage import HaveMessage
 from domain.message.interestedMessage import InterestedMessage
 from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 from domain.message.notInterestedMessage import NotInterestedMessage
 from domain.message.pieceMessage import PieceMessage
+from domain.message.requestMessage import RequestMessage
 from domain.message.unchokeMessage import UnchokeMessage
 from domain.peer import Peer
 from domain.piece import Piece
@@ -30,13 +32,14 @@ class MessageProcessor:
     def __unchokeMessageAction(self) -> None:
         self.__otherPeer.isChokingMe = False
 
-    def __interestedMessageAction(self) -> None:
+    async def __interestedMessageAction(self, downloadSession: DownloadSession) -> None:
         self.__otherPeer.isInterestedInMe = True
+        await BitfieldMessage(downloadSession.downloadedPieces).send(self.__otherPeer)
 
     def __notInterestedMessageAction(self) -> None:
         self.__otherPeer.isInterestedInMe = False
 
-    async def __pieceMessageAction(self, message: PieceMessage, downloadSession: DownloadSession, sender: Peer) -> None:
+    async def __pieceMessageAction(self, message: PieceMessage, downloadSession: DownloadSession) -> None:
         pieceIndex: int = utils.convert4ByteBigEndianToInteger(message.pieceIndex)
         if pieceIndex >= len(downloadSession.pieces) or pieceIndex < 0:
             return
@@ -45,7 +48,7 @@ class MessageProcessor:
         if piece.isDownloadComplete:
             return
 
-        await downloadSession.cancelRequestsToOtherPeers(utils.convert4ByteBigEndianToInteger(message.pieceIndex), utils.convert4ByteBigEndianToInteger(message.beginOffset), sender)
+        await downloadSession.cancelRequestsToOtherPeers(utils.convert4ByteBigEndianToInteger(message.pieceIndex), utils.convert4ByteBigEndianToInteger(message.beginOffset), self.__otherPeer)
         piece.writeDataToBlock(utils.convert4ByteBigEndianToInteger(message.beginOffset), message.block)
         downloadSession.addCompletedBytes(len(message.block))
         if not piece.isDownloadComplete:
@@ -62,7 +65,13 @@ class MessageProcessor:
             piece.clear()
         return
 
-    async def processMessage(self, message: MessageWithLengthAndID, downloadSession: DownloadSession, sender: Peer) -> None:
+    def __requestMessageAction(self) -> None:
+        pass
+
+    def __cancelMessageAction(self) -> None:
+        pass
+
+    async def processMessage(self, message: MessageWithLengthAndID, downloadSession: DownloadSession) -> None:
         if isinstance(message, BitfieldMessage):
             self.__bitfieldMessageAction(message)
         elif isinstance(message, HaveMessage):
@@ -72,8 +81,12 @@ class MessageProcessor:
         elif isinstance(message, UnchokeMessage):
             self.__unchokeMessageAction()
         elif isinstance(message, InterestedMessage):
-            self.__interestedMessageAction()
+            await self.__interestedMessageAction(downloadSession)
         elif isinstance(message, NotInterestedMessage):
             self.__notInterestedMessageAction()
         elif isinstance(message, PieceMessage):
-            await self.__pieceMessageAction(message, downloadSession, sender)
+            await self.__pieceMessageAction(message, downloadSession)
+        elif isinstance(message, RequestMessage):
+            self.__requestMessageAction()
+        elif isinstance(message, CancelMessage):
+            self.__cancelMessageAction()

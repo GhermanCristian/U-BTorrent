@@ -93,9 +93,7 @@ class ProcessSingleTorrent:
             print(e)
             return False
 
-        if not lengthPrefix:
-            return True
-        if lengthPrefix == utils.convertIntegerTo4ByteBigEndian(KeepAliveMessage.LENGTH_PREFIX):
+        if not lengthPrefix or lengthPrefix == utils.convertIntegerTo4ByteBigEndian(KeepAliveMessage.LENGTH_PREFIX):
             return True
         messageID: bytes = await self.__attemptToReadBytes(sender.streamReader, utils.MESSAGE_ID_LENGTH)
         payloadLength: int = utils.convert4ByteBigEndianToInteger(lengthPrefix) - utils.MESSAGE_ID_LENGTH
@@ -105,20 +103,22 @@ class ProcessSingleTorrent:
 
         try:
             message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
-            await MessageProcessor(sender).processMessage(message, self.__downloadSession, sender)
+            # TODO - put these messages in a queue in MessageProcessor
+            await MessageProcessor(sender).processMessage(message, self.__downloadSession)
         except Exception as e:
             print(e)
         return True
 
     async def __exchangeMessagesWithPeer(self, otherPeer: Peer) -> None:
-        if not await self.__attemptToHandshakeWithPeer(otherPeer):
-            return
-
-        await InterestedMessage().send(otherPeer)
-        otherPeer.amInterestedInIt = True
         while otherPeer.hasActiveConnection():
             if not await self.__readMessage(otherPeer):
                 await otherPeer.closeConnection()
+
+    async def __startConnectionToPeer(self, otherPeer: Peer) -> None:
+        if await self.__attemptToHandshakeWithPeer(otherPeer):
+            await InterestedMessage().send(otherPeer)
+            otherPeer.amInterestedInIt = True
+            await self.__exchangeMessagesWithPeer(otherPeer)
 
     async def __startTorrentDownload(self) -> None:
         await self.__makeTrackerConnection()
@@ -132,7 +132,7 @@ class ProcessSingleTorrent:
 
         self.__downloadSession.setPeerList(self.__peerList)
         self.__downloadSession.start()
-        coroutineList: List[Coroutine] = [self.__exchangeMessagesWithPeer(otherPeer) for otherPeer in self.__peerList]
+        coroutineList: List[Coroutine] = [self.__startConnectionToPeer(otherPeer) for otherPeer in self.__peerList]
         coroutineList.append(self.__downloadSession.requestBlocks())
         await asyncio.gather(*coroutineList)
         await self.__closeAllActiveConnections()

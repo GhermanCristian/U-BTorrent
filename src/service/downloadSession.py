@@ -17,7 +17,7 @@ class DownloadSession:
         self.__scanner: TorrentMetaInfoScanner = scanner
         self.__pieces: List[Piece] = PieceGenerator(scanner).generatePiecesWithBlocks()
         self.__downloadedPieces: bitarray = bitarray()
-        self.__downloadedPieces = [piece.isDownloadComplete for piece in self.__pieces]
+        self.__downloadedPieces.extend([piece.isDownloadComplete for piece in self.__pieces])
         self.__otherPeers: List[Peer] = []
         self.__currentPieceIndex: int = 0
         self.__currentBlockIndex: int = 0
@@ -137,6 +137,10 @@ class DownloadSession:
     @property
     def isUploadPaused(self) -> bool:
         return self.__isUploadPaused
+
+    @property
+    def downloadedPieces(self) -> bitarray:
+        return self.__downloadedPieces
 
     async def pauseDownload(self) -> None:
         """To keep in mind - there was a bug where I downloaded 100.2% after a pause-resume;
