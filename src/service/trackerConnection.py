@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Final, Dict, Any, Tuple
+from typing import List, Final, Dict, Any, Tuple, Callable
 import requests
 from requests import Response
 import utils
@@ -52,20 +52,38 @@ class TrackerConnection:
             "event": "started"
         }
 
-    async def makeTrackerStartedRequest(self) -> Tuple[List[Peer], int]:
+    def __getFinishedPayloadForPort(self, port: int) -> Dict[str, bytes | str | int]:
+        return {
+            "info_hash": self.__infoHash,
+            "peer_id": utils.PEER_ID,
+            "port": port,
+            "uploaded": "0",
+            "downloaded": self.__totalSize,
+            "left": "0",
+            "compact": 1,
+            "event": "finished"
+        }
+
+    async def __makeRequest(self, payloadGetter: Callable[[int], Dict[str, bytes | str | int]]) -> Tuple[List[Peer], int]:
         ATTEMPTS_TO_CONNECT_TO_TRACKER: Final[int] = 3
 
         currentPort: int = self.FIRST_AVAILABLE_PORT
         while currentPort <= self.LAST_AVAILABLE_PORT:
             for attempt in range(ATTEMPTS_TO_CONNECT_TO_TRACKER):
                 try:
-                    peerList: List[Peer] | None = await self.__getPeers(self.__getStartedPayloadForPort(currentPort))
+                    peerList: List[Peer] | None = await self.__getPeers(payloadGetter(currentPort))
                     if peerList is not None:
                         return peerList, currentPort
                 except Exception as e:
                     print("Error - ", e)
             currentPort += 1
         # TODO - if the connection cannot be established with the current tracker address, try the others from the announceURL list
+
+    async def makeTrackerStartedRequest(self) -> Tuple[List[Peer], int]:
+        return await self.__makeRequest(lambda currentPort: self.__getStartedPayloadForPort(currentPort))
+
+    async def makeTrackerFinishedRequest(self) -> Tuple[List[Peer], int]:
+        return await self.__makeRequest(lambda currentPort: self.__getFinishedPayloadForPort(currentPort))
 
     @property
     def currentIP(self) -> str:
