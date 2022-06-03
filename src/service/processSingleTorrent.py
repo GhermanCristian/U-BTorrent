@@ -9,7 +9,7 @@ from domain.message.messageWithLengthAndID import MessageWithLengthAndID
 from domain.peer import Peer
 from domain.validator.handshakeMessageValidator import HandshakeMessageValidator
 from service.downloadSession import DownloadSession
-from service.messageProcessor import MessageProcessor
+from service.messageQueue import MessageQueue
 from service.messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
 from service.sessionMetrics import SessionMetrics
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
@@ -21,6 +21,7 @@ class ProcessSingleTorrent:
         self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFilePath, downloadLocation)
         self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__scanner.infoHash, TrackerConnection.PEER_ID)
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner)
+        self.__messageQueue: MessageQueue = MessageQueue(self.__downloadSession)
         # using this instead of the usual asyncio.run(), because of issues when calling create_task from another thread (e.g. from the GUI)
         self.__eventLoop: AbstractEventLoop = asyncio.new_event_loop()
 
@@ -103,8 +104,7 @@ class ProcessSingleTorrent:
 
         try:
             message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
-            # TODO - put these messages in a queue in MessageProcessor
-            await MessageProcessor(sender).processMessage(message, self.__downloadSession)
+            self.__messageQueue.putMessageInQueue(message, sender)
         except Exception as e:
             print(e)
         return True
@@ -132,6 +132,7 @@ class ProcessSingleTorrent:
 
         self.__downloadSession.setPeerList(self.__peerList)
         self.__downloadSession.start()
+        self.__messageQueue.start()
         coroutineList: List[Coroutine] = [self.__startConnectionToPeer(otherPeer) for otherPeer in self.__peerList]
         coroutineList.append(self.__downloadSession.requestBlocks())
         await asyncio.gather(*coroutineList)

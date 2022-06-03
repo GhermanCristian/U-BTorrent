@@ -4,7 +4,7 @@ from domain.message.cancelMessage import CancelMessage
 from domain.message.chokeMessage import ChokeMessage
 from domain.message.haveMessage import HaveMessage
 from domain.message.interestedMessage import InterestedMessage
-from domain.message.messageWithLengthAndID import MessageWithLengthAndID
+from domain.message.message import Message
 from domain.message.notInterestedMessage import NotInterestedMessage
 from domain.message.pieceMessage import PieceMessage
 from domain.message.requestMessage import RequestMessage
@@ -15,50 +15,51 @@ from service.downloadSession import DownloadSession
 
 
 class MessageProcessor:
-    def __init__(self, otherPeer: Peer):
-        self.__otherPeer = otherPeer
+    def __init__(self, sender: Peer, downloadSession: DownloadSession):
+        self.__sender: Peer = sender
+        self.__downloadSession: DownloadSession = downloadSession
 
     def __bitfieldMessageAction(self, message: BitfieldMessage) -> None:
         # TODO - add validators for all messages
-        self.__otherPeer.availablePieces.clear()
-        self.__otherPeer.availablePieces.frombytes(message.bitfield)
+        self.__sender.availablePieces.clear()
+        self.__sender.availablePieces.frombytes(message.bitfield)
 
     def __haveMessageAction(self, message: HaveMessage) -> None:
-        self.__otherPeer.availablePieces[utils.convertByteToInteger(message.pieceIndex)] = 1
+        self.__sender.availablePieces[utils.convertByteToInteger(message.pieceIndex)] = 1
 
     def __chokeMessageAction(self) -> None:
-        self.__otherPeer.isChokingMe = True
+        self.__sender.isChokingMe = True
 
     def __unchokeMessageAction(self) -> None:
-        self.__otherPeer.isChokingMe = False
+        self.__sender.isChokingMe = False
 
-    async def __interestedMessageAction(self, downloadSession: DownloadSession) -> None:
-        self.__otherPeer.isInterestedInMe = True
-        await BitfieldMessage(downloadSession.downloadedPieces).send(self.__otherPeer)
+    async def __interestedMessageAction(self) -> None:
+        self.__sender.isInterestedInMe = True
+        await BitfieldMessage(self.__downloadSession.downloadedPieces).send(self.__sender)
 
     def __notInterestedMessageAction(self) -> None:
-        self.__otherPeer.isInterestedInMe = False
+        self.__sender.isInterestedInMe = False
 
-    async def __pieceMessageAction(self, message: PieceMessage, downloadSession: DownloadSession) -> None:
+    async def __pieceMessageAction(self, message: PieceMessage) -> None:
         pieceIndex: int = utils.convert4ByteBigEndianToInteger(message.pieceIndex)
-        if pieceIndex >= len(downloadSession.pieces) or pieceIndex < 0:
+        if pieceIndex >= len(self.__downloadSession.pieces) or pieceIndex < 0:
             return
 
-        piece: Piece = downloadSession.pieces[pieceIndex]
+        piece: Piece = self.__downloadSession.pieces[pieceIndex]
         if piece.isDownloadComplete:
             return
 
-        await downloadSession.cancelRequestsToOtherPeers(utils.convert4ByteBigEndianToInteger(message.pieceIndex), utils.convert4ByteBigEndianToInteger(message.beginOffset), self.__otherPeer)
+        await self.__downloadSession.cancelRequestsToOtherPeers(utils.convert4ByteBigEndianToInteger(message.pieceIndex), utils.convert4ByteBigEndianToInteger(message.beginOffset), self.__sender)
         piece.writeDataToBlock(utils.convert4ByteBigEndianToInteger(message.beginOffset), message.block)
-        downloadSession.addCompletedBytes(len(message.block))
+        self.__downloadSession.addCompletedBytes(len(message.block))
         if not piece.isDownloadComplete:
             return
 
         actualPieceHash: bytes = piece.infoHash
-        expectedPieceHash: bytes = downloadSession.getPieceHash(pieceIndex)
+        expectedPieceHash: bytes = self.__downloadSession.getPieceHash(pieceIndex)
         if actualPieceHash == expectedPieceHash:
-            downloadSession.putPieceInWritingQueue(piece)
-            downloadSession.markPieceAsDownloaded(piece)
+            self.__downloadSession.putPieceInWritingQueue(piece)
+            self.__downloadSession.markPieceAsDownloaded(piece)
         else:
             # there's no need to re-request this - the piece will not be marked as complete, so it will be "caught"
             # in the next search loop of the download session
@@ -71,7 +72,7 @@ class MessageProcessor:
     def __cancelMessageAction(self) -> None:
         pass
 
-    async def processMessage(self, message: MessageWithLengthAndID, downloadSession: DownloadSession) -> None:
+    async def processMessage(self, message: Message) -> None:
         if isinstance(message, BitfieldMessage):
             self.__bitfieldMessageAction(message)
         elif isinstance(message, HaveMessage):
@@ -81,11 +82,11 @@ class MessageProcessor:
         elif isinstance(message, UnchokeMessage):
             self.__unchokeMessageAction()
         elif isinstance(message, InterestedMessage):
-            await self.__interestedMessageAction(downloadSession)
+            await self.__interestedMessageAction()
         elif isinstance(message, NotInterestedMessage):
             self.__notInterestedMessageAction()
         elif isinstance(message, PieceMessage):
-            await self.__pieceMessageAction(message, downloadSession)
+            await self.__pieceMessageAction(message)
         elif isinstance(message, RequestMessage):
             self.__requestMessageAction()
         elif isinstance(message, CancelMessage):
