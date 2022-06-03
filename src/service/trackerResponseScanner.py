@@ -30,7 +30,7 @@ class TrackerResponseScanner:
         currentIndex += 1  # skip the ":"
         assert peersByteCount % PEER_SIZE_BINARY_MODEL == 0, f"The number of bytes for the peers IPs and ports should be a multiple of {PEER_SIZE_BINARY_MODEL}"
 
-        for _ in range(0, peersByteCount // PEER_SIZE_BINARY_MODEL):
+        for _ in range(peersByteCount // PEER_SIZE_BINARY_MODEL):
             currentIP = peersPart[currentIndex] * 256**3 + peersPart[currentIndex + 1] * 256**2 + peersPart[currentIndex + 2] * 256 + peersPart[currentIndex + 3]
             currentPort = peersPart[currentIndex + 4] * 256 + peersPart[currentIndex + 5]
             peerAddressList.append(Peer(currentIP, currentPort))

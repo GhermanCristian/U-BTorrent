@@ -19,17 +19,15 @@ from service.trackerConnection import TrackerConnection
 class ProcessSingleTorrent:
     def __init__(self, torrentFilePath: str, downloadLocation: str):
         self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFilePath, downloadLocation)
-        self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__scanner.infoHash, TrackerConnection.PEER_ID)
+        self.__trackerConnection: TrackerConnection = TrackerConnection(self.__scanner)
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner)
         self.__messageQueue: MessageQueue = MessageQueue(self.__downloadSession)
         # using this instead of the usual asyncio.run(), because of issues when calling create_task from another thread (e.g. from the GUI)
         self.__eventLoop: AbstractEventLoop = asyncio.new_event_loop()
 
-    async def __makeTrackerConnection(self) -> None:
-        trackerConnection: TrackerConnection = TrackerConnection()
-        await trackerConnection.makeTrackerRequest(self.__scanner.announceURL, self.__scanner.infoHash, self.__scanner.getTotalContentSize())
-        self.__peerList: List[Peer] = trackerConnection.peerList
-        self.__host: Peer = trackerConnection.host
+    async def __makeTrackerStartedRequest(self) -> None:
+        self.__peerList, port = await self.__trackerConnection.makeTrackerStartedRequest()
+        self.__host: Peer = Peer(utils.convertIPFromStringToInt(self.__trackerConnection.currentIP), port)
 
     """
     Attempts to read byteCount bytes. If too many empty messages are read in a row, the reading is aborted
@@ -67,7 +65,7 @@ class ProcessSingleTorrent:
         for attempt in range(ATTEMPTS_TO_CONNECT_TO_PEER):
             try:
                 otherPeer.streamReader, otherPeer.streamWriter = await asyncio.open_connection(utils.convertIPFromIntToString(otherPeer.IP), otherPeer.port)
-                await self.__handshakeMessage.send(otherPeer)
+                await HandshakeMessage(self.__scanner.infoHash, utils.PEER_ID).send(otherPeer)
                 handshakeResponse: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, utils.HANDSHAKE_MESSAGE_LENGTH)
                 if HandshakeMessageValidator(self.__scanner.infoHash, HandshakeMessage.CURRENT_PROTOCOL, handshakeResponse).validate():
                     return True
@@ -121,7 +119,7 @@ class ProcessSingleTorrent:
             await self.__exchangeMessagesWithPeer(otherPeer)
 
     async def __startTorrentDownload(self) -> None:
-        await self.__makeTrackerConnection()
+        await self.__makeTrackerStartedRequest()
 
         try:
             self.__peerList.remove(self.__host)
