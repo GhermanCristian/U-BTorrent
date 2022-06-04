@@ -118,6 +118,13 @@ class ProcessSingleTorrent:
             otherPeer.amInterestedInIt = True
             await self.__exchangeMessagesWithPeer(otherPeer)
 
+    async def __download(self) -> None:
+        isDownloaded: bool = await self.__downloadSession.requestBlocks()
+        if isDownloaded:
+            print("finished")
+        else:
+            print("just paused")
+
     async def __startTorrentDownload(self) -> None:
         await self.__makeTrackerStartedRequest()
 
@@ -125,16 +132,14 @@ class ProcessSingleTorrent:
             self.__peerList.remove(self.__host)
         except ValueError:
             pass
-        if not self.__peerList:
-            return
-
-        self.__downloadSession.setPeerList(self.__peerList)
-        self.__downloadSession.start()
-        self.__messageQueue.start()
-        coroutineList: List[Coroutine] = [self.__startConnectionToPeer(otherPeer) for otherPeer in self.__peerList]
-        coroutineList.append(self.__downloadSession.requestBlocks())
-        await asyncio.gather(*coroutineList)
-        await self.__closeAllActiveConnections()
+        if self.__peerList:
+            self.__downloadSession.setPeerList(self.__peerList)
+            self.__downloadSession.start()
+            self.__messageQueue.start()
+            coroutineList: List[Coroutine] = [self.__startConnectionToPeer(otherPeer) for otherPeer in self.__peerList]
+            coroutineList.append(self.__download())
+            await asyncio.gather(*coroutineList)
+            await self.__closeAllActiveConnections()
 
     def run(self) -> None:
         events.set_event_loop(self.__eventLoop)
@@ -155,16 +160,17 @@ class ProcessSingleTorrent:
         return self.__downloadSession.isUploadPaused
 
     def pauseDownload(self) -> None:
-        self.__eventLoop.create_task(self.__downloadSession.pauseDownload())
+        self.__downloadSession.isDownloadPaused = True
 
     def resumeDownload(self) -> None:
-        self.__eventLoop.create_task(self.__downloadSession.resumeDownload())
+        self.__downloadSession.isDownloadPaused = False
+        self.__eventLoop.create_task(self.__download())
 
     def pauseUpload(self) -> None:
-        self.__downloadSession.pauseUpload()
+        self.__downloadSession.isUploadPaused = True
 
     def resumeUpload(self) -> None:
-        self.__downloadSession.resumeUpload()
+        self.__downloadSession.isUploadPaused = False
 
     def __eq__(self, other) -> bool:
         return isinstance(other, self.__class__) and self.__scanner.infoHash == other.__scanner.infoHash

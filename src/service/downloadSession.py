@@ -36,7 +36,7 @@ class DownloadSession:
         self.__torrentSaver.start()
         self.__sessionMetrics.start()
 
-    def isDownloaded(self) -> bool:
+    def __isDownloaded(self) -> bool:
         return all(self.__downloadedPieces)
 
     """
@@ -82,19 +82,22 @@ class DownloadSession:
         await RequestMessage(block.pieceIndex, block.beginOffset, block.length).send(peer)
         peer.blocksRequestedFromPeer.append(block)
 
-    def __afterTorrentDownloadFinishes(self) -> None:
+    async def __afterTorrentDownloadFinishes(self) -> None:
         self.__torrentSaver.setDownloadComplete()
         self.__sessionMetrics.stopTimer()
+        await self.__cancelAllRequests()
 
-    async def requestBlocks(self) -> None:
+    async def requestBlocks(self) -> bool:
         INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second
 
         while not self.__isDownloadPaused:
             await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
-            if self.isDownloaded():
-                self.__afterTorrentDownloadFinishes()
-                return
+            if self.__isDownloaded():
+                await self.__afterTorrentDownloadFinishes()
+                return True
             await self.__requestNextBlock()
+        await self.__cancelAllRequests()
+        return False
 
     """
     Sends CancelMessages to all peers to which a request has been made for a given block (excluding the peer which answered the request).
@@ -149,27 +152,18 @@ class DownloadSession:
     def isDownloadPaused(self) -> bool:
         return self.__isDownloadPaused
 
+    @isDownloadPaused.setter
+    def isDownloadPaused(self, newValue: bool) -> None:
+        self.__isDownloadPaused = newValue
+
     @property
     def isUploadPaused(self) -> bool:
         return self.__isUploadPaused
 
+    @isUploadPaused.setter
+    def isUploadPaused(self, newValue: bool) -> None:
+        self.__isDownloadPaused = newValue
+
     @property
     def downloadedPieces(self) -> bitarray:
         return self.__downloadedPieces
-
-    async def pauseDownload(self) -> None:
-        """To keep in mind - there was a bug where I downloaded 100.2% after a pause-resume;
-        also TODO - re-query the tracker when resuming (+ new handshakes etc), because some peers might disconnect
-        in the meantime, especially if the pause takes a long time"""
-        self.__isDownloadPaused = True
-        await self.__cancelAllRequests()
-
-    async def resumeDownload(self) -> None:
-        self.__isDownloadPaused = False
-        await self.requestBlocks()
-
-    def pauseUpload(self) -> None:
-        self.__isUploadPaused = True
-
-    def resumeUpload(self) -> None:
-        self.__isUploadPaused = False
