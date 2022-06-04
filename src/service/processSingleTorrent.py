@@ -1,11 +1,12 @@
 import asyncio
 from asyncio import StreamReader, events, AbstractEventLoop
-from typing import List, Final, Coroutine
+from typing import List, Final, Coroutine, Tuple
 import utils
 from domain.message.handshakeMessage import HandshakeMessage
 from domain.message.interestedMessage import InterestedMessage
 from domain.message.keepAliveMessage import KeepAliveMessage
 from domain.message.messageWithLengthAndID import MessageWithLengthAndID
+from domain.message.unchokeMessage import UnchokeMessage
 from domain.peer import Peer
 from domain.validator.handshakeMessageValidator import HandshakeMessageValidator
 from service.downloadSession import DownloadSession
@@ -22,12 +23,14 @@ class ProcessSingleTorrent:
         self.__trackerConnection: TrackerConnection = TrackerConnection(self.__scanner)
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner)
         self.__messageQueue: MessageQueue = MessageQueue(self.__downloadSession)
+        self.__peerList: List[Peer] = []
         # using this instead of the usual asyncio.run(), because of issues when calling create_task from another thread (e.g. from the GUI)
         self.__eventLoop: AbstractEventLoop = asyncio.new_event_loop()
 
     async def __makeTrackerStartedRequest(self) -> None:
-        self.__peerList, port = await self.__trackerConnection.makeTrackerStartedRequest()
+        peerList, port = await self.__trackerConnection.makeTrackerStartedRequest()
         self.__host: Peer = Peer(utils.convertIPFromStringToInt(self.__trackerConnection.currentIP), port)
+        await self.__addNewPeers(peerList)
 
     """
     Attempts to read byteCount bytes. If too many empty messages are read in a row, the reading is aborted
@@ -112,31 +115,58 @@ class ProcessSingleTorrent:
             if not await self.__readMessage(otherPeer):
                 await otherPeer.closeConnection()
 
-    async def __startConnectionToPeer(self, otherPeer: Peer) -> None:
-        if await self.__attemptToHandshakeWithPeer(otherPeer):
-            await InterestedMessage().send(otherPeer)
-            otherPeer.amInterestedInIt = True
-            await self.__exchangeMessagesWithPeer(otherPeer)
+    async def __startConnectionToPeerForDownload(self, otherPeer: Peer) -> None:
+        await InterestedMessage().send(otherPeer)
+        otherPeer.amInterestedInIt = True
+        await self.__exchangeMessagesWithPeer(otherPeer)
+
+    async def __startConnectionToPeerForUpload(self, otherPeer: Peer) -> None:
+        await UnchokeMessage().send(otherPeer)
+        otherPeer.amChokingIt = False
+        await self.__exchangeMessagesWithPeer(otherPeer)
+
+    def __removeDisconnectedPeers(self) -> None:
+        connectedPeers: List[Peer] = []
+        for peer in self.__peerList:
+            if peer.hasActiveConnection():
+                connectedPeers.append(peer)
+        self.__peerList.clear()
+        self.__peerList.extend(connectedPeers)
+
+    async def __addNewPeers(self, newPeers: List[Peer]) -> None:
+        for newPeer in newPeers:
+            if newPeer not in self.__peerList:
+                if await self.__attemptToHandshakeWithPeer(newPeer):
+                    self.__peerList.append(newPeer)
+        try:
+            self.__peerList.remove(self.__host)
+        except ValueError:
+            pass
+
+    async def __upload(self) -> None:
+        newPeersAndPort: Tuple[List[Peer], int] = await self.__trackerConnection.makeTrackerFinishedRequest()
+        if newPeersAndPort[1] != self.__host.port:
+            self.__host = Peer(utils.convertIPFromStringToInt(self.__trackerConnection.currentIP), newPeersAndPort[1])
+        self.__removeDisconnectedPeers()
+        await self.__addNewPeers(newPeersAndPort[0])
+        print("started uploading")
+        await asyncio.gather(*[self.__startConnectionToPeerForUpload(peer) for peer in self.__peerList])
 
     async def __download(self) -> None:
         isDownloaded: bool = await self.__downloadSession.requestBlocks()
         if isDownloaded:
-            print("finished")
+            await self.__upload()
         else:
             print("just paused")
 
     async def __startTorrentDownload(self) -> None:
         await self.__makeTrackerStartedRequest()
 
-        try:
-            self.__peerList.remove(self.__host)
-        except ValueError:
-            pass
         if self.__peerList:
             self.__downloadSession.setPeerList(self.__peerList)
             self.__downloadSession.start()
             self.__messageQueue.start()
-            coroutineList: List[Coroutine] = [self.__startConnectionToPeer(otherPeer) for otherPeer in self.__peerList]
+            coroutineList: List[Coroutine] = [self.__startConnectionToPeerForDownload(otherPeer) for otherPeer in self.__peerList]
             coroutineList.append(self.__download())
             await asyncio.gather(*coroutineList)
             await self.__closeAllActiveConnections()
