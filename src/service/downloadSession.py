@@ -1,8 +1,10 @@
 import asyncio
 from typing import List, Final, Tuple
 from bitarray import bitarray
+import utils
 from domain.block import Block
 from domain.message.cancelMessage import CancelMessage
+from domain.message.pieceMessage import PieceMessage
 from domain.message.requestMessage import RequestMessage
 from domain.peer import Peer
 from domain.piece import Piece
@@ -34,14 +36,8 @@ class DownloadSession:
         self.__torrentSaver.start()
         self.__sessionMetrics.start()
 
-    def addCompletedBytes(self, increment: int) -> None:
-        self.__sessionMetrics.addCompletedBytes(increment)
-
     def isDownloaded(self) -> bool:
         return all(self.__downloadedPieces)
-
-    def __setDownloadCompleteInTorrentSaver(self) -> None:
-        self.__torrentSaver.setDownloadComplete()
 
     """
     Finds a peer which contains the current piece
@@ -87,7 +83,7 @@ class DownloadSession:
         peer.blocksRequestedFromPeer.append(block)
 
     def __afterTorrentDownloadFinishes(self) -> None:
-        self.__setDownloadCompleteInTorrentSaver()
+        self.__torrentSaver.setDownloadComplete()
         self.__sessionMetrics.stopTimer()
 
     async def requestBlocks(self) -> None:
@@ -107,7 +103,7 @@ class DownloadSession:
     @:param beginOffset - offset of the block inside its piece
     @:param sender - the peer who answered the PieceRequest
     """
-    async def cancelRequestsToOtherPeers(self, pieceIndex: int, beginOffset: int, sender: Peer) -> None:
+    async def __cancelRequestsToOtherPeers(self, pieceIndex: int, beginOffset: int, sender: Peer) -> None:
         for otherPeer in self.__otherPeers:
             for blockIndex in range(len(otherPeer.blocksRequestedFromPeer)):
                 if otherPeer.blocksRequestedFromPeer[blockIndex].pieceIndex == pieceIndex and otherPeer.blocksRequestedFromPeer[blockIndex].beginOffset == beginOffset:
@@ -122,9 +118,28 @@ class DownloadSession:
                 await CancelMessage(block.pieceIndex, block.beginOffset, block.length).send(otherPeer)
             otherPeer.blocksRequestedFromPeer.clear()
 
-    @property
-    def pieces(self) -> List[Piece]:
-        return self.__pieces
+    async def receivePieceMessage(self, message: PieceMessage, sender: Peer) -> None:
+        pieceIndex: int = utils.convert4ByteBigEndianToInteger(message.pieceIndex)
+        if pieceIndex >= len(self.__pieces) or pieceIndex < 0:
+            return
+        piece: Piece = self.__pieces[pieceIndex]
+        if piece.isDownloadComplete:
+            return
+        await self.__cancelRequestsToOtherPeers(utils.convert4ByteBigEndianToInteger(message.pieceIndex), utils.convert4ByteBigEndianToInteger(message.beginOffset), sender)
+        piece.writeDataToBlock(utils.convert4ByteBigEndianToInteger(message.beginOffset), message.block)
+        self.__sessionMetrics.addCompletedBytes(len(message.block))
+        if not piece.isDownloadComplete:
+            return
+
+        actualPieceHash: bytes = piece.infoHash
+        expectedPieceHash: bytes = self.__scanner.getPieceHash(pieceIndex)
+        if actualPieceHash == expectedPieceHash:
+            self.__torrentSaver.putPieceInQueue(piece)
+            self.__downloadedPieces[piece.index] = True
+        else:
+            # there's no need to re-request this - the piece will not be marked as complete, so it will be "caught" in the next search loop of the download session
+            piece.clear()
+        return
 
     @property
     def sessionMetrics(self) -> SessionMetrics:
@@ -158,12 +173,3 @@ class DownloadSession:
 
     def resumeUpload(self) -> None:
         self.__isUploadPaused = False
-
-    def getPieceHash(self, pieceIndex: int) -> bytes:
-        return self.__scanner.getPieceHash(pieceIndex)
-
-    def putPieceInWritingQueue(self, piece: Piece) -> None:
-        self.__torrentSaver.putPieceInQueue(piece)
-
-    def markPieceAsDownloaded(self, piece: Piece) -> None:
-        self.__downloadedPieces[piece.index] = True

@@ -10,7 +10,6 @@ from domain.message.pieceMessage import PieceMessage
 from domain.message.requestMessage import RequestMessage
 from domain.message.unchokeMessage import UnchokeMessage
 from domain.peer import Peer
-from domain.piece import Piece
 from service.downloadSession import DownloadSession
 
 
@@ -41,30 +40,7 @@ class MessageProcessor:
         self.__sender.isInterestedInMe = False
 
     async def __pieceMessageAction(self, message: PieceMessage) -> None:
-        pieceIndex: int = utils.convert4ByteBigEndianToInteger(message.pieceIndex)
-        if pieceIndex >= len(self.__downloadSession.pieces) or pieceIndex < 0:
-            return
-
-        piece: Piece = self.__downloadSession.pieces[pieceIndex]
-        if piece.isDownloadComplete:
-            return
-
-        await self.__downloadSession.cancelRequestsToOtherPeers(utils.convert4ByteBigEndianToInteger(message.pieceIndex), utils.convert4ByteBigEndianToInteger(message.beginOffset), self.__sender)
-        piece.writeDataToBlock(utils.convert4ByteBigEndianToInteger(message.beginOffset), message.block)
-        self.__downloadSession.addCompletedBytes(len(message.block))
-        if not piece.isDownloadComplete:
-            return
-
-        actualPieceHash: bytes = piece.infoHash
-        expectedPieceHash: bytes = self.__downloadSession.getPieceHash(pieceIndex)
-        if actualPieceHash == expectedPieceHash:
-            self.__downloadSession.putPieceInWritingQueue(piece)
-            self.__downloadSession.markPieceAsDownloaded(piece)
-        else:
-            # there's no need to re-request this - the piece will not be marked as complete, so it will be "caught"
-            # in the next search loop of the download session
-            piece.clear()
-        return
+        await self.__downloadSession.receivePieceMessage(message, self.__sender)
 
     def __requestMessageAction(self) -> None:
         pass
