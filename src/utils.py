@@ -1,6 +1,8 @@
 import datetime
+import os
 from asyncio import StreamReader, StreamWriter
 from typing import Tuple, Final
+from domain.file import File
 
 MESSAGE_ID_LENGTH: Final[int] = 1  # bytes
 HANDSHAKE_MESSAGE_LENGTH: Final[int] = 68  # bytes
@@ -66,3 +68,20 @@ def prettyPrintSize(byteCount: float) -> str:
 
 def prettyPrintTime(seconds: int) -> str:
     return str(datetime.timedelta(seconds=seconds))
+
+
+def readFileSection(file: File, fileStartOffset: int, sectionLength: int) -> bytes | None:
+    try:
+        fileDescriptor: int = os.open(file.path, os.O_RDONLY | os.O_BINARY)
+    except Exception:
+        return None
+    newPosition: int = os.lseek(fileDescriptor, fileStartOffset, os.SEEK_SET)
+    if newPosition != fileStartOffset:
+        os.close(fileDescriptor)
+        return None
+    readData: bytes = os.read(fileDescriptor, sectionLength)
+    if len(readData) != sectionLength:
+        os.close(fileDescriptor)
+        return None
+    os.close(fileDescriptor)
+    return readData

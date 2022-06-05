@@ -20,7 +20,6 @@ class DownloadSession:
         self.__scanner: TorrentMetaInfoScanner = scanner
         self.__pieces: List[Piece] = PieceGenerator(scanner).generatePiecesWithBlocks()
         self.__downloadedPieces: bitarray = bitarray()
-        self.__downloadedPieces.extend([piece.isDownloadComplete for piece in self.__pieces])
         self.__otherPeers: List[Peer] = []
         self.__currentPieceIndex: int = 0
         self.__currentBlockIndex: int = 0
@@ -34,9 +33,16 @@ class DownloadSession:
         self.__otherPeers.clear()
         self.__otherPeers.extend(peerList)
 
-    def start(self) -> None:
+    def startDownload(self) -> None:
         self.__torrentSaver.start()
         self.__sessionMetrics.start()
+
+    def startJustUpload(self) -> None:
+        self.__sessionMetrics.start()
+
+    def setDownloadedPieces(self, piecesAlreadyWrittenOnDisk: List[bool]) -> None:
+        self.__downloadedPieces.clear()
+        self.__downloadedPieces.extend(piecesAlreadyWrittenOnDisk)
 
     def __isDownloaded(self) -> bool:
         return all(self.__downloadedPieces)

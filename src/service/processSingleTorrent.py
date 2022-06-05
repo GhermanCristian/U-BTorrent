@@ -13,6 +13,7 @@ from service.downloadSession import DownloadSession
 from service.messageQueue import MessageQueue
 from service.messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
 from service.sessionMetrics import SessionMetrics
+from service.torrentChecker import TorrentChecker
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 from service.trackerConnection import TrackerConnection
 
@@ -151,6 +152,7 @@ class ProcessSingleTorrent:
             self.__host = Peer(utils.convertIPFromStringToInt(self.__trackerConnection.currentIP), newPeersAndPort[1])
         self.__removeDisconnectedPeers()
         await self.__addNewPeers(newPeersAndPort[0])
+        self.__downloadSession.setPeerList(self.__peerList)
         [peerDownloadingCoroutine.close() for peerDownloadingCoroutine in self.__peerDownloadingCoroutines]
         print("started uploading")
         await asyncio.gather(*[self.__startConnectionToPeerForUpload(peer) for peer in self.__peerList])
@@ -172,11 +174,18 @@ class ProcessSingleTorrent:
         self.__eventLoop.create_task(self.__stop())
 
     async def __startTorrentDownload(self) -> None:
-        await self.__makeTrackerStartedRequest()
+        await self.__makeTrackerStartedRequest()  # need this even if it's already downloaded, because we need the host
+        isPieceWrittenOnDisk: List[bool] = TorrentChecker(self.__scanner).getPiecesWrittenOnDisk()
+        self.__downloadSession.setDownloadedPieces(isPieceWrittenOnDisk)
+        if all(isPieceWrittenOnDisk):
+            self.__downloadSession.startJustUpload()
+            # don't call this in self.__upload(), because that point can also be reached after a regular download, therefore it may have already been called
+            await self.__upload()
+            return
 
         if self.__peerList:
             self.__downloadSession.setPeerList(self.__peerList)
-            self.__downloadSession.start()
+            self.__downloadSession.startDownload()
             self.__messageQueue.start()
             self.__peerDownloadingCoroutines.extend([self.__startConnectionToPeerForDownload(otherPeer) for otherPeer in self.__peerList])
             coroutineList: List[Coroutine] = []
