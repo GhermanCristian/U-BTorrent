@@ -84,7 +84,12 @@ class DownloadSession:
 
     async def __afterTorrentDownloadFinishes(self) -> None:
         self.__torrentSaver.setDownloadComplete()
+        await self.__cancelAllRequests()
+
+    """This can be called anytime"""
+    async def stop(self) -> None:
         self.__sessionMetrics.stopTimer()
+        self.__torrentSaver.stop()
         await self.__cancelAllRequests()
 
     async def requestBlocks(self) -> bool:
@@ -130,7 +135,7 @@ class DownloadSession:
             return
         await self.__cancelRequestsToOtherPeers(utils.convert4ByteBigEndianToInteger(message.pieceIndex), utils.convert4ByteBigEndianToInteger(message.beginOffset), sender)
         piece.writeDataToBlock(utils.convert4ByteBigEndianToInteger(message.beginOffset), message.block)
-        self.__sessionMetrics.addCompletedBytes(len(message.block))
+        self.__sessionMetrics.addDownloadedBytes(len(message.block))
         if not piece.isDownloadComplete:
             return
 

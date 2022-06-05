@@ -162,6 +162,15 @@ class ProcessSingleTorrent:
         else:
             print("just paused")
 
+    async def __stop(self) -> None:
+        self.__messageQueue.running = False
+        await self.__downloadSession.stop()
+        await self.__closeAllActiveConnections()
+        # normally I should stop + close the event loop here, but trust me, it can't be done
+
+    def stop(self) -> None:
+        self.__eventLoop.create_task(self.__stop())
+
     async def __startTorrentDownload(self) -> None:
         await self.__makeTrackerStartedRequest()
 
@@ -174,12 +183,11 @@ class ProcessSingleTorrent:
             coroutineList.extend(self.__peerDownloadingCoroutines)
             coroutineList.append(self.__download())
             await asyncio.gather(*coroutineList)
-            await self.__closeAllActiveConnections()
+            self.stop()  # "natural" stop
 
     def run(self) -> None:
         events.set_event_loop(self.__eventLoop)
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # due to issues with closing the event loop on Windows
-        # TODO - implement some form of signal handling, in order to call cleanup functions when force-closing the program
         self.__eventLoop.run_until_complete(self.__startTorrentDownload())
 
     @property

@@ -12,6 +12,10 @@ class TorrentClient:
             for singleTorrentProcessor in self.__singleTorrentProcessors:
                 executor.submit(singleTorrentProcessor.run)
 
+    def stop(self) -> None:
+        for singleTorrentProcessor in self.__singleTorrentProcessors:
+            singleTorrentProcessor.stop()
+
     @property
     def singleTorrentProcessors(self) -> List[ProcessSingleTorrent]:
         return self.__singleTorrentProcessors
