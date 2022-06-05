@@ -42,11 +42,11 @@ class MessageProcessor:
     async def __pieceMessageAction(self, message: PieceMessage) -> None:
         await self.__downloadSession.receivePieceMessage(message, self.__sender)
 
-    def __requestMessageAction(self) -> None:
-        pass
+    async def __requestMessageAction(self, message: RequestMessage) -> None:
+        await self.__downloadSession.receiveRequestMessage(message, self.__sender)
 
-    def __cancelMessageAction(self) -> None:
-        pass
+    async def __cancelMessageAction(self, message: CancelMessage) -> None:
+        await self.__downloadSession.receiveCancelMessage(message, self.__sender)
 
     async def processMessage(self, message: Message) -> None:
         if isinstance(message, BitfieldMessage):
@@ -64,6 +64,6 @@ class MessageProcessor:
         elif isinstance(message, PieceMessage):
             await self.__pieceMessageAction(message)
         elif isinstance(message, RequestMessage):
-            self.__requestMessageAction()
+            await self.__requestMessageAction(message)
         elif isinstance(message, CancelMessage):
-            self.__cancelMessageAction()
+            await self.__cancelMessageAction(message)

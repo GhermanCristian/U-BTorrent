@@ -12,6 +12,7 @@ from service.pieceGenerator import PieceGenerator
 from service.sessionMetrics import SessionMetrics
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 from service.torrentSaver import TorrentSaver
+from service.torrentUploader import TorrentUploader
 
 
 class DownloadSession:
@@ -24,6 +25,7 @@ class DownloadSession:
         self.__currentPieceIndex: int = 0
         self.__currentBlockIndex: int = 0
         self.__torrentSaver: TorrentSaver = TorrentSaver(scanner)
+        self.__torrentUploader: TorrentUploader = TorrentUploader(scanner.files, scanner.regularPieceLength)
         self.__sessionMetrics: SessionMetrics = SessionMetrics(scanner)
         self.__isDownloadPaused: bool = False
         self.__isUploadPaused: bool = False
@@ -85,11 +87,13 @@ class DownloadSession:
     async def __afterTorrentDownloadFinishes(self) -> None:
         self.__torrentSaver.setDownloadComplete()
         await self.__cancelAllRequests()
+        self.__torrentUploader.start()
 
     """This can be called anytime"""
     async def stop(self) -> None:
         self.__sessionMetrics.stopTimer()
         self.__torrentSaver.stop()
+        self.__torrentUploader.stop()
         await self.__cancelAllRequests()
 
     async def requestBlocks(self) -> bool:
@@ -148,6 +152,33 @@ class DownloadSession:
             # there's no need to re-request this - the piece will not be marked as complete, so it will be "caught" in the next search loop of the download session
             piece.clear()
         return
+
+    async def receiveRequestMessage(self, message: RequestMessage, sender: Peer) -> None:
+        pieceIndex: int = utils.convert4ByteBigEndianToInteger(message.pieceIndex)
+        if pieceIndex >= len(self.__pieces) or pieceIndex < 0:
+            return
+        blockLength: int = utils.convert4ByteBigEndianToInteger(message.blockLength)
+        if blockLength > utils.BLOCK_REQUEST_SIZE:
+            return
+        blockWithoutData: Block | None = self.__pieces[pieceIndex].getBlockStartingAtOffset(utils.convert4ByteBigEndianToInteger(message.beginOffset))
+        if blockWithoutData is None:
+            return
+        if blockWithoutData not in sender.blocksRequestedByPeer:
+            sender.blocksRequestedByPeer.append(blockWithoutData)
+            self.__torrentUploader.putBlockInQueue(blockWithoutData, sender)
+
+    async def receiveCancelMessage(self, message: CancelMessage, sender: Peer) -> None:
+        pieceIndex: int = utils.convert4ByteBigEndianToInteger(message.pieceIndex)
+        if pieceIndex >= len(self.__pieces) or pieceIndex < 0:
+            return
+        blockLength: int = utils.convert4ByteBigEndianToInteger(message.blockLength)
+        if blockLength > utils.BLOCK_REQUEST_SIZE:
+            return
+        blockWithoutData: Block | None = self.__pieces[pieceIndex].getBlockStartingAtOffset(utils.convert4ByteBigEndianToInteger(message.beginOffset))
+        if blockWithoutData is None:
+            return
+        if blockWithoutData in sender.blocksRequestedByPeer:
+            sender.blocksRequestedByPeer.remove(blockWithoutData)
 
     @property
     def sessionMetrics(self) -> SessionMetrics:
