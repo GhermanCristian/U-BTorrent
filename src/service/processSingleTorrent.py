@@ -64,11 +64,12 @@ class ProcessSingleTorrent:
     @:returns True, if the connection was successful, false otherwise
     """
     async def __attemptToHandshakeWithPeer(self, otherPeer: Peer) -> bool:
-        ATTEMPTS_TO_CONNECT_TO_PEER: Final[int] = 3
+        ATTEMPTS_TO_CONNECT_TO_PEER: Final[int] = 2
+        OPEN_CONNECTION_TIMEOUT_IN_SECONDS: Final[float] = 2.5
 
-        for attempt in range(ATTEMPTS_TO_CONNECT_TO_PEER):
+        for _ in range(ATTEMPTS_TO_CONNECT_TO_PEER):
             try:
-                otherPeer.streamReader, otherPeer.streamWriter = await asyncio.open_connection(utils.convertIPFromIntToString(otherPeer.IP), otherPeer.port)
+                otherPeer.streamReader, otherPeer.streamWriter = await asyncio.wait_for(asyncio.open_connection(utils.convertIPFromIntToString(otherPeer.IP), otherPeer.port), timeout=OPEN_CONNECTION_TIMEOUT_IN_SECONDS)
                 await HandshakeMessage(self.__scanner.infoHash, utils.PEER_ID).send(otherPeer)
                 handshakeResponse: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, utils.HANDSHAKE_MESSAGE_LENGTH)
                 if HandshakeMessageValidator(self.__scanner.infoHash, HandshakeMessage.CURRENT_PROTOCOL, handshakeResponse).validate():
