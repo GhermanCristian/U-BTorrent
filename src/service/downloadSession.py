@@ -24,7 +24,7 @@ class DownloadSession:
         self.__currentPieceIndex: int = 0
         self.__currentBlockIndex: int = 0
         self.__torrentSaver: TorrentSaver = TorrentSaver(scanner)
-        self.__torrentUploader: TorrentUploader = TorrentUploader(scanner.files, scanner.regularPieceLength)
+        self.__torrentUploader: TorrentUploader = TorrentUploader(scanner)
         self.__sessionMetrics: SessionMetrics = SessionMetrics(scanner)
         self.__isDownloadPaused: bool = False
         self.__isUploadPaused: bool = False
@@ -39,6 +39,7 @@ class DownloadSession:
 
     def startJustUpload(self) -> None:
         self.__sessionMetrics.start()
+        self.__sessionMetrics.addDownloadedBytes(self.__scanner.getTotalContentSize())
 
     def setDownloadedPieces(self, piecesAlreadyWrittenOnDisk: List[bool]) -> None:
         self.__downloadedPieces.clear()
