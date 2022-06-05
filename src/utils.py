@@ -6,6 +6,7 @@ MESSAGE_ID_LENGTH: Final[int] = 1  # bytes
 HANDSHAKE_MESSAGE_LENGTH: Final[int] = 68  # bytes
 INFINITY: Final[int] = 999999999
 PEER_ID: Final[str] = "ABCDEFGHIJKLMNOPQRST"
+BLOCK_REQUEST_SIZE: Final[int] = 16384  # 2 ^ 14 bytes
 
 
 def convertIntegerTo4ByteBigEndian(intValue: int) -> bytes:

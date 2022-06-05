@@ -1,5 +1,6 @@
 import math
-from typing import Final, List
+from typing import List
+import utils
 from domain.block import Block
 from domain.piece import Piece
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
@@ -28,13 +29,11 @@ class PieceGenerator:
     @:return the list of pieces
     """
     def generatePiecesWithBlocks(self) -> List[Piece]:
-        BLOCK_REQUEST_SIZE: Final[int] = 16384  # 2 ^ 14 bytes
-
         pieceCount: int = self.__scanner.pieceCount
         pieceLength: int = self.__scanner.regularPieceLength
         finalPieceLength: int = self.__scanner.finalPieceLength
 
-        blockLength: int = BLOCK_REQUEST_SIZE
+        blockLength: int = utils.BLOCK_REQUEST_SIZE
         blocksInPiece: int = math.ceil(pieceLength / blockLength)
         finalBlockLength: int = pieceLength % blockLength
         if finalBlockLength == 0:
