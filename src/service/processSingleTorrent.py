@@ -1,17 +1,19 @@
 import asyncio
 from asyncio import StreamReader, events, AbstractEventLoop
-from typing import List, Final, Coroutine
+from typing import List, Final, Coroutine, Tuple
 import utils
 from domain.message.handshakeMessage import HandshakeMessage
 from domain.message.interestedMessage import InterestedMessage
 from domain.message.keepAliveMessage import KeepAliveMessage
 from domain.message.messageWithLengthAndID import MessageWithLengthAndID
+from domain.message.unchokeMessage import UnchokeMessage
 from domain.peer import Peer
 from domain.validator.handshakeMessageValidator import HandshakeMessageValidator
 from service.downloadSession import DownloadSession
-from service.messageProcessor import MessageProcessor
+from service.messageQueue import MessageQueue
 from service.messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
 from service.sessionMetrics import SessionMetrics
+from service.torrentChecker import TorrentChecker
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 from service.trackerConnection import TrackerConnection
 
@@ -19,16 +21,18 @@ from service.trackerConnection import TrackerConnection
 class ProcessSingleTorrent:
     def __init__(self, torrentFilePath: str, downloadLocation: str):
         self.__scanner: TorrentMetaInfoScanner = TorrentMetaInfoScanner(torrentFilePath, downloadLocation)
-        self.__handshakeMessage: HandshakeMessage = HandshakeMessage(self.__scanner.infoHash, TrackerConnection.PEER_ID)
+        self.__trackerConnection: TrackerConnection = TrackerConnection(self.__scanner)
         self.__downloadSession: DownloadSession = DownloadSession(self.__scanner)
+        self.__messageQueue: MessageQueue = MessageQueue(self.__downloadSession)
+        self.__peerList: List[Peer] = []
+        self.__peerDownloadingCoroutines: List[Coroutine] = []
         # using this instead of the usual asyncio.run(), because of issues when calling create_task from another thread (e.g. from the GUI)
         self.__eventLoop: AbstractEventLoop = asyncio.new_event_loop()
 
-    async def __makeTrackerConnection(self) -> None:
-        trackerConnection: TrackerConnection = TrackerConnection()
-        await trackerConnection.makeTrackerRequest(self.__scanner.announceURL, self.__scanner.infoHash, self.__scanner.getTotalContentSize())
-        self.__peerList: List[Peer] = trackerConnection.peerList
-        self.__host: Peer = trackerConnection.host
+    async def __makeTrackerStartedRequest(self) -> None:
+        peerList, port = await self.__trackerConnection.makeTrackerStartedRequest()
+        self.__host: Peer = Peer(utils.convertIPFromStringToInt(self.__trackerConnection.currentIP), port)
+        await self.__addNewPeers(peerList)
 
     """
     Attempts to read byteCount bytes. If too many empty messages are read in a row, the reading is aborted
@@ -61,12 +65,13 @@ class ProcessSingleTorrent:
     @:returns True, if the connection was successful, false otherwise
     """
     async def __attemptToHandshakeWithPeer(self, otherPeer: Peer) -> bool:
-        ATTEMPTS_TO_CONNECT_TO_PEER: Final[int] = 3
+        ATTEMPTS_TO_CONNECT_TO_PEER: Final[int] = 2
+        OPEN_CONNECTION_TIMEOUT_IN_SECONDS: Final[float] = 2.5
 
-        for attempt in range(ATTEMPTS_TO_CONNECT_TO_PEER):
+        for _ in range(ATTEMPTS_TO_CONNECT_TO_PEER):
             try:
-                otherPeer.streamReader, otherPeer.streamWriter = await asyncio.open_connection(utils.convertIPFromIntToString(otherPeer.IP), otherPeer.port)
-                await self.__handshakeMessage.send(otherPeer)
+                otherPeer.streamReader, otherPeer.streamWriter = await asyncio.wait_for(asyncio.open_connection(utils.convertIPFromIntToString(otherPeer.IP), otherPeer.port), timeout=OPEN_CONNECTION_TIMEOUT_IN_SECONDS)
+                await HandshakeMessage(self.__scanner.infoHash, utils.PEER_ID).send(otherPeer)
                 handshakeResponse: bytes = await self.__attemptToReadBytes(otherPeer.streamReader, utils.HANDSHAKE_MESSAGE_LENGTH)
                 if HandshakeMessageValidator(self.__scanner.infoHash, HandshakeMessage.CURRENT_PROTOCOL, handshakeResponse).validate():
                     return True
@@ -93,9 +98,7 @@ class ProcessSingleTorrent:
             print(e)
             return False
 
-        if not lengthPrefix:
-            return True
-        if lengthPrefix == utils.convertIntegerTo4ByteBigEndian(KeepAliveMessage.LENGTH_PREFIX):
+        if not lengthPrefix or lengthPrefix == utils.convertIntegerTo4ByteBigEndian(KeepAliveMessage.LENGTH_PREFIX):
             return True
         messageID: bytes = await self.__attemptToReadBytes(sender.streamReader, utils.MESSAGE_ID_LENGTH)
         payloadLength: int = utils.convert4ByteBigEndianToInteger(lengthPrefix) - utils.MESSAGE_ID_LENGTH
@@ -105,42 +108,95 @@ class ProcessSingleTorrent:
 
         try:
             message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
-            await MessageProcessor(sender).processMessage(message, self.__downloadSession, sender)
+            self.__messageQueue.putMessageInQueue(message, sender)
         except Exception as e:
             print(e)
         return True
 
     async def __exchangeMessagesWithPeer(self, otherPeer: Peer) -> None:
-        if not await self.__attemptToHandshakeWithPeer(otherPeer):
-            return
-
-        await InterestedMessage().send(otherPeer)
-        otherPeer.amInterestedInIt = True
         while otherPeer.hasActiveConnection():
             if not await self.__readMessage(otherPeer):
                 await otherPeer.closeConnection()
 
-    async def __startTorrentDownload(self) -> None:
-        await self.__makeTrackerConnection()
+    async def __startConnectionToPeerForDownload(self, otherPeer: Peer) -> None:
+        await InterestedMessage().send(otherPeer)
+        otherPeer.amInterestedInIt = True
+        await self.__exchangeMessagesWithPeer(otherPeer)
 
+    async def __startConnectionToPeerForUpload(self, otherPeer: Peer) -> None:
+        await UnchokeMessage().send(otherPeer)
+        otherPeer.amChokingIt = False
+        await self.__exchangeMessagesWithPeer(otherPeer)
+
+    def __removeDisconnectedPeers(self) -> None:
+        connectedPeers: List[Peer] = []
+        for peer in self.__peerList:
+            if peer.hasActiveConnection():
+                connectedPeers.append(peer)
+        self.__peerList.clear()
+        self.__peerList.extend(connectedPeers)
+
+    async def __addNewPeers(self, newPeers: List[Peer]) -> None:
         try:
-            self.__peerList.remove(self.__host)
+            newPeers.remove(self.__host)
         except ValueError:
             pass
-        if not self.__peerList:
+        for newPeer in newPeers:
+            if newPeer not in self.__peerList:
+                if await self.__attemptToHandshakeWithPeer(newPeer):
+                    self.__peerList.append(newPeer)
+
+    async def __upload(self) -> None:
+        newPeersAndPort: Tuple[List[Peer], int] = await self.__trackerConnection.makeTrackerFinishedRequest()
+        if newPeersAndPort[1] != self.__host.port:
+            self.__host = Peer(utils.convertIPFromStringToInt(self.__trackerConnection.currentIP), newPeersAndPort[1])
+        self.__removeDisconnectedPeers()
+        await self.__addNewPeers(newPeersAndPort[0])
+        self.__downloadSession.setPeerList(self.__peerList)
+        [peerDownloadingCoroutine.close() for peerDownloadingCoroutine in self.__peerDownloadingCoroutines]
+        print("started uploading")
+        await asyncio.gather(*[self.__startConnectionToPeerForUpload(peer) for peer in self.__peerList])
+
+    async def __download(self) -> None:
+        isDownloaded: bool = await self.__downloadSession.requestBlocks()
+        if isDownloaded:
+            await self.__upload()
+        else:
+            print("just paused")
+
+    async def __stop(self) -> None:
+        self.__messageQueue.running = False
+        await self.__downloadSession.stop()
+        await self.__closeAllActiveConnections()
+        # normally I should stop + close the event loop here, but trust me, it can't be done
+
+    def stop(self) -> None:
+        self.__eventLoop.create_task(self.__stop())
+
+    async def __startTorrentDownload(self) -> None:
+        await self.__makeTrackerStartedRequest()  # need this even if it's already downloaded, because we need the host
+        isPieceWrittenOnDisk: List[bool] = TorrentChecker(self.__scanner).getPiecesWrittenOnDisk()
+        self.__downloadSession.setDownloadedPieces(isPieceWrittenOnDisk)
+        if all(isPieceWrittenOnDisk):
+            self.__downloadSession.startJustUpload()
+            # don't call this in self.__upload(), because that point can also be reached after a regular download, therefore it may have already been called
+            await self.__upload()
             return
 
-        self.__downloadSession.setPeerList(self.__peerList)
-        self.__downloadSession.start()
-        coroutineList: List[Coroutine] = [self.__exchangeMessagesWithPeer(otherPeer) for otherPeer in self.__peerList]
-        coroutineList.append(self.__downloadSession.requestBlocks())
-        await asyncio.gather(*coroutineList)
-        await self.__closeAllActiveConnections()
+        if self.__peerList:
+            self.__downloadSession.setPeerList(self.__peerList)
+            self.__downloadSession.startDownload()
+            self.__messageQueue.start()
+            self.__peerDownloadingCoroutines.extend([self.__startConnectionToPeerForDownload(otherPeer) for otherPeer in self.__peerList])
+            coroutineList: List[Coroutine] = []
+            coroutineList.extend(self.__peerDownloadingCoroutines)
+            coroutineList.append(self.__download())
+            await asyncio.gather(*coroutineList)
+            self.stop()  # "natural" stop
 
     def run(self) -> None:
         events.set_event_loop(self.__eventLoop)
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # due to issues with closing the event loop on Windows
-        # TODO - implement some form of signal handling, in order to call cleanup functions when force-closing the program
         self.__eventLoop.run_until_complete(self.__startTorrentDownload())
 
     @property
@@ -156,16 +212,17 @@ class ProcessSingleTorrent:
         return self.__downloadSession.isUploadPaused
 
     def pauseDownload(self) -> None:
-        self.__eventLoop.create_task(self.__downloadSession.pauseDownload())
+        self.__downloadSession.isDownloadPaused = True
 
     def resumeDownload(self) -> None:
-        self.__eventLoop.create_task(self.__downloadSession.resumeDownload())
+        self.__downloadSession.isDownloadPaused = False
+        self.__eventLoop.create_task(self.__download())
 
     def pauseUpload(self) -> None:
-        self.__downloadSession.pauseUpload()
+        self.__downloadSession.isUploadPaused = True
 
     def resumeUpload(self) -> None:
-        self.__downloadSession.resumeUpload()
+        self.__downloadSession.isUploadPaused = False
 
     def __eq__(self, other) -> bool:
         return isinstance(other, self.__class__) and self.__scanner.infoHash == other.__scanner.infoHash

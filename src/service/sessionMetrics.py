@@ -5,7 +5,8 @@ from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 
 class SessionMetrics:
     def __init__(self, scanner: TorrentMetaInfoScanner):
-        self.__totalCompletedBytes: int = 0
+        self.__totalDownloadedBytes: int = 0
+        self.__totalUploadedBytes: int = 0
         self.__torrentName: str = scanner.torrentName
         self.__totalSize: int = scanner.getTotalContentSize()
         self.__timeMetrics: TimeMetrics = TimeMetrics()
@@ -13,9 +14,13 @@ class SessionMetrics:
     def start(self) -> None:
         self.__timeMetrics.start()
 
-    def addCompletedBytes(self, increment: int) -> None:
-        self.__totalCompletedBytes += increment
+    def addDownloadedBytes(self, increment: int) -> None:
+        self.__totalDownloadedBytes += increment
         self.__timeMetrics.downloadedBytesLastInterval += increment
+
+    def addUploadedBytes(self, increment: int) -> None:
+        self.__totalUploadedBytes += increment
+        self.__timeMetrics.uploadedBytesLastInterval += increment
 
     def stopTimer(self) -> None:
         self.__timeMetrics.stopTimer()
@@ -29,12 +34,24 @@ class SessionMetrics:
         return self.__timeMetrics.downloadSpeed
 
     @property
+    def uploadSpeed(self) -> float:
+        return self.__timeMetrics.uploadSpeed
+
+    @property
     def elapsedTime(self) -> int:
         return self.__timeMetrics.elapsedTime
 
     @property
-    def totalCompletedBytes(self) -> int:
-        return self.__totalCompletedBytes
+    def totalDownloadedBytes(self) -> int:
+        return self.__totalDownloadedBytes
+
+    @property
+    def totalUploadedBytes(self) -> int:
+        return self.__totalUploadedBytes
+
+    @property
+    def seedRatio(self) -> float:
+        return self.__totalUploadedBytes / self.__totalDownloadedBytes
 
     @property
     def totalSize(self) -> int:
@@ -42,11 +59,11 @@ class SessionMetrics:
 
     @property
     def completionPercentage(self) -> float:
-        return self.__totalCompletedBytes / self.__totalSize * 100
+        return self.__totalDownloadedBytes / self.__totalSize * 100
 
     @property
     def remainingBytes(self) -> int:
-        return self.__totalSize - self.__totalCompletedBytes
+        return self.__totalSize - self.__totalDownloadedBytes
 
     @property
     def ETA(self) -> int:

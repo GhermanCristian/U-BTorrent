@@ -18,6 +18,7 @@ class Peer:
         self.__streamReader: StreamReader | None = None
         self.__streamWriter: StreamWriter | None = None
         self.__blocksRequestedFromPeer: List[Block] = []
+        self.__blocksRequestedByPeer: List[Block] = []
 
     @property
     def IP(self) -> int:
@@ -86,6 +87,10 @@ class Peer:
     @property
     def blocksRequestedFromPeer(self) -> List[Block]:
         return self.__blocksRequestedFromPeer
+
+    @property
+    def blocksRequestedByPeer(self) -> List[Block]:
+        return self.__blocksRequestedByPeer
 
     async def closeConnection(self) -> None:
         if self.hasActiveConnection():

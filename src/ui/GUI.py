@@ -49,8 +49,12 @@ class GUI:
         thread = threading.Thread(target=self.__torrentClient.start)
         thread.start()
         self.__refreshModel()
-        self.__mainWindow.mainloop()
-        thread.join()
+        try:
+            self.__mainWindow.mainloop()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self.__torrentClient.stop()
 
     def __refreshModel(self) -> None:
         self.__treeViewLogic.refreshModel()
