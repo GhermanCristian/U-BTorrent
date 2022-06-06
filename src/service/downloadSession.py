@@ -28,6 +28,7 @@ class DownloadSession:
         self.__sessionMetrics: SessionMetrics = SessionMetrics(scanner)
         self.__isDownloadPaused: bool = False
         self.__isUploadPaused: bool = False
+        self.__requestedBlockCount: int = 0
 
     def setPeerList(self, peerList: List[Peer]) -> None:
         self.__otherPeers.clear()
@@ -90,6 +91,7 @@ class DownloadSession:
 
         await RequestMessage(block.pieceIndex, block.beginOffset, block.length).send(peer)
         peer.blocksRequestedFromPeer.append(block)
+        self.__requestedBlockCount += 1
 
     async def __afterTorrentDownloadFinishes(self) -> None:
         self.__torrentSaver.setDownloadComplete()
@@ -105,12 +107,15 @@ class DownloadSession:
 
     async def requestBlocks(self) -> bool:
         INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second
+        MAX_REQUESTED_BLOCK_COUNT: Final[int] = 2400
 
         while not self.__isDownloadPaused:
             await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
             if self.__isDownloaded():
                 await self.__afterTorrentDownloadFinishes()
                 return True
+            while self.__requestedBlockCount >= MAX_REQUESTED_BLOCK_COUNT:
+                await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
             await self.__requestNextBlock()
         await self.__cancelAllRequests()
         return False
@@ -129,6 +134,7 @@ class DownloadSession:
                     if otherPeer != sender:
                         await CancelMessage(pieceIndex, beginOffset, otherPeer.blocksRequestedFromPeer[blockIndex].length).send(otherPeer)
                     otherPeer.blocksRequestedFromPeer.pop(blockIndex)
+                    self.__requestedBlockCount -= 1
                     break
 
     async def __cancelAllRequests(self) -> None:
@@ -136,6 +142,7 @@ class DownloadSession:
             for block in otherPeer.blocksRequestedFromPeer:
                 await CancelMessage(block.pieceIndex, block.beginOffset, block.length).send(otherPeer)
             otherPeer.blocksRequestedFromPeer.clear()
+        self.__requestedBlockCount = 0
 
     async def receivePieceMessage(self, message: PieceMessage, sender: Peer) -> None:
         pieceIndex: int = utils.convert4ByteBigEndianToInteger(message.pieceIndex)
