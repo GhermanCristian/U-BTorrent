@@ -2,7 +2,7 @@ from configparser import ConfigParser
 from typing import Final
 
 """This file is basically a singleton"""
-SETTINGS_FILE_PATH: Final[str] = "..\\Resources\\settings.ini"
+SETTINGS_FILE_PATH: Final[str] = "Resources\\settings.ini"
 DEFAULT_SECTION_NAME: Final[str] = "DEFAULT"
 
 """have to use snake case instead of camel case, because the config parser is case-insensitive;
