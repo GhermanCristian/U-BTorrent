@@ -205,7 +205,7 @@ class DownloadSession:
 
     @isUploadPaused.setter
     def isUploadPaused(self, newValue: bool) -> None:
-        self.__isDownloadPaused = newValue
+        self.__isUploadPaused = newValue
 
     @property
     def downloadedPieces(self) -> bitarray:
