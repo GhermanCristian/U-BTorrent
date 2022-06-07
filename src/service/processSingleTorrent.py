@@ -176,7 +176,7 @@ class ProcessSingleTorrent:
     async def __startTorrentDownload(self) -> None:
         await self.__makeTrackerStartedRequest()  # need this even if it's already downloaded, because we need the host
         isPieceWrittenOnDisk: List[bool] = TorrentDiskIntegrityChecker(self.__scanner).getPiecesWrittenOnDisk()
-        self.__downloadSession.setDownloadedPieces(isPieceWrittenOnDisk)
+        self.__downloadSession.downloadedPieces = isPieceWrittenOnDisk
         if all(isPieceWrittenOnDisk):
             self.__downloadSession.startJustUpload()
             # don't call this in self.__upload(), because that point can also be reached after a regular download, therefore it may have already been called
