@@ -13,15 +13,21 @@ class TorrentList:
     COMPLETED_RATIO_COLUMN_NAME: Final[str] = "Completed"
     TOTAL_SIZE_COLUMN_NAME: Final[str] = "Size"
     REMAINING_SIZE_COLUMN_NAME: Final[str] = "Remaining"
-    DOWNLOAD_SPEED_COLUMN_NAME: Final[str] = "Download speed"
+    DOWNLOAD_SPEED_COLUMN_NAME: Final[str] = "Down speed"
     ETA_COLUMN_NAME: Final[str] = "ETA"
     ELAPSED_TIME_COLUMN_NAME: Final[str] = "Elapsed time"
+    UPLOAD_SPEED_COLUMN_NAME: Final[str] = "Up speed"
+    UPLOADED_SIZE_COLUMN_NAME: Final[str] = "Uploaded"
+    SEED_RATIO_COLUMN_NAME: Final[str] = "Seed ratio"
     COLUMN_NAMES: Final[List[str]] = [COMPLETED_RATIO_COLUMN_NAME,
                                       REMAINING_SIZE_COLUMN_NAME,
                                       TOTAL_SIZE_COLUMN_NAME,
                                       DOWNLOAD_SPEED_COLUMN_NAME,
                                       ETA_COLUMN_NAME,
-                                      ELAPSED_TIME_COLUMN_NAME]
+                                      ELAPSED_TIME_COLUMN_NAME,
+                                      UPLOAD_SPEED_COLUMN_NAME,
+                                      UPLOADED_SIZE_COLUMN_NAME,
+                                      SEED_RATIO_COLUMN_NAME]
     NAME_COLUMN_IDENTIFIER: Final[str] = "#0"
     ROOT_PARENT: Final[str] = ""
 
@@ -31,10 +37,10 @@ class TorrentList:
         self.__treeView: Treeview = self.__createTreeView()
         self.__contextMenuLogic: ContextMenu = ContextMenu(self.__treeView, singleTorrentProcessors)
 
-    def __getDownloadSpeedInViewForm(self, downloadSpeed: float) -> str:
-        if downloadSpeed == 0:
+    def __getTransferSpeedInViewForm(self, transferSpeed: float) -> str:
+        if transferSpeed == 0:
             return "-"
-        return f"{utils.prettyPrintSize(downloadSpeed)}/s"
+        return f"{utils.prettyPrintSize(transferSpeed)}/s"
 
     def __getETAInViewForm(self, ETA: int) -> str:
         if ETA == utils.INFINITY:
@@ -49,9 +55,12 @@ class TorrentList:
             self.COMPLETED_RATIO_COLUMN_NAME: f"{sessionMetrics.completionPercentage:.2f}%",
             self.REMAINING_SIZE_COLUMN_NAME: utils.prettyPrintSize(sessionMetrics.remainingBytes),
             self.TOTAL_SIZE_COLUMN_NAME: utils.prettyPrintSize(sessionMetrics.totalSize),
-            self.DOWNLOAD_SPEED_COLUMN_NAME: self.__getDownloadSpeedInViewForm(sessionMetrics.downloadSpeed),
+            self.DOWNLOAD_SPEED_COLUMN_NAME: self.__getTransferSpeedInViewForm(sessionMetrics.downloadSpeed),
             self.ETA_COLUMN_NAME: self.__getETAInViewForm(sessionMetrics.ETA),
-            self.ELAPSED_TIME_COLUMN_NAME: f"{utils.prettyPrintTime(sessionMetrics.elapsedTime)}"
+            self.ELAPSED_TIME_COLUMN_NAME: f"{utils.prettyPrintTime(sessionMetrics.elapsedTime)}",
+            self.UPLOAD_SPEED_COLUMN_NAME: self.__getTransferSpeedInViewForm(sessionMetrics.uploadSpeed),
+            self.UPLOADED_SIZE_COLUMN_NAME: utils.prettyPrintSize(sessionMetrics.totalUploadedBytes),
+            self.SEED_RATIO_COLUMN_NAME: f"{sessionMetrics.seedRatio:.3f}"
         }
         return [IDENTIFIER_TO_VIEW_FORM[columnIdentifier] for columnIdentifier in currentColumns]
 
@@ -65,7 +74,10 @@ class TorrentList:
             self.TOTAL_SIZE_COLUMN_NAME: sessionMetrics.totalSize,
             self.DOWNLOAD_SPEED_COLUMN_NAME: sessionMetrics.downloadSpeed,
             self.ETA_COLUMN_NAME: sessionMetrics.ETA,
-            self.ELAPSED_TIME_COLUMN_NAME: sessionMetrics.elapsedTime
+            self.ELAPSED_TIME_COLUMN_NAME: sessionMetrics.elapsedTime,
+            self.UPLOAD_SPEED_COLUMN_NAME: sessionMetrics.uploadSpeed,
+            self.UPLOADED_SIZE_COLUMN_NAME: sessionMetrics.totalUploadedBytes,
+            self.SEED_RATIO_COLUMN_NAME: sessionMetrics.seedRatio
         }
         return IDENTIFIER_TO_FIELD[columnIdentifier]
 
