@@ -13,7 +13,7 @@ from service.downloadSession import DownloadSession
 from service.messageQueue import MessageQueue
 from service.messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
 from service.sessionMetrics import SessionMetrics
-from service.torrentChecker import TorrentChecker
+from service.torrentDiskIntegrityChecker import TorrentDiskIntegrityChecker
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 from service.trackerConnection import TrackerConnection
 
@@ -175,7 +175,7 @@ class ProcessSingleTorrent:
 
     async def __startTorrentDownload(self) -> None:
         await self.__makeTrackerStartedRequest()  # need this even if it's already downloaded, because we need the host
-        isPieceWrittenOnDisk: List[bool] = TorrentChecker(self.__scanner).getPiecesWrittenOnDisk()
+        isPieceWrittenOnDisk: List[bool] = TorrentDiskIntegrityChecker(self.__scanner).getPiecesWrittenOnDisk()
         self.__downloadSession.setDownloadedPieces(isPieceWrittenOnDisk)
         if all(isPieceWrittenOnDisk):
             self.__downloadSession.startJustUpload()

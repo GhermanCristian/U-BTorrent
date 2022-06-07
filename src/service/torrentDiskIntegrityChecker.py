@@ -4,7 +4,7 @@ from service.torrentDiskLoader import TorrentDiskLoader
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 
 
-class TorrentChecker:
+class TorrentDiskIntegrityChecker:
     def __init__(self, scanner: TorrentMetaInfoScanner):
         self.__scanner: TorrentMetaInfoScanner = scanner
         self.__torrentDiskLoader: TorrentDiskLoader = TorrentDiskLoader(scanner)
