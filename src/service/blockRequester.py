@@ -15,7 +15,7 @@ class BlockRequester:
         self.__currentBlockIndex: int = 0
         self.__downloadedPieces: bitarray = bitarray()
         self.__requestedBlockCount: int = 0
-        self.__isDownloadPaused: int = 0
+        self.__isDownloadPaused: bool = False
         
     def setPeerList(self, peerList: List[Peer]) -> None:
         self.__peerList.clear()
@@ -91,6 +91,14 @@ class BlockRequester:
     @property
     def downloadedPieces(self) -> bitarray:
         return self.__downloadedPieces
+
+    @property
+    def isDownloadPaused(self) -> bool:
+        return self.__isDownloadPaused
+
+    @isDownloadPaused.setter
+    def isDownloadPaused(self, newValue: bool) -> None:
+        self.__isDownloadPaused = newValue
 
     def markPieceAsDownloaded(self, pieceIndex: int) -> None:
         self.__downloadedPieces[pieceIndex] = True

@@ -24,7 +24,6 @@ class DownloadSession:
         self.__torrentUploader: TorrentUploader = TorrentUploader(scanner)
         self.__sessionMetrics: SessionMetrics = SessionMetrics(scanner)
         self.__blockRequester: BlockRequester = BlockRequester(self.__pieces)
-        self.__isDownloadPaused: bool = False
         self.__isUploadPaused: bool = False
 
     def setPeerList(self, peerList: List[Peer]) -> None:
@@ -137,11 +136,11 @@ class DownloadSession:
 
     @property
     def isDownloadPaused(self) -> bool:
-        return self.__isDownloadPaused
+        return self.__blockRequester.isDownloadPaused
 
     @isDownloadPaused.setter
     def isDownloadPaused(self, newValue: bool) -> None:
-        self.__isDownloadPaused = newValue
+        self.__blockRequester.isDownloadPaused = newValue
 
     @property
     def isUploadPaused(self) -> bool:
