@@ -1,7 +1,6 @@
 import threading
 from tkinter import *
 from tkinter import filedialog
-from tkinter.ttk import Treeview
 from typing import Final, Tuple
 from service import settingsProcessor
 from service.torrentClient import TorrentClient
@@ -22,7 +21,6 @@ class GUI:
         self.__torrentClient: TorrentClient = TorrentClient(torrentFilesPaths, settingsProcessor.getDownloadLocation())
 
         self.__treeViewLogic: TorrentList = TorrentList(self.__mainWindow, self.__torrentClient.singleTorrentProcessors)
-        self.__treeView: Treeview = self.__treeViewLogic.treeView
 
     def __createMainWindow(self) -> Tk:
         WINDOW_TITLE: Final[str] = "U-BTorrent"
