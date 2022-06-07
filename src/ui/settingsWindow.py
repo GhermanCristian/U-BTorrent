@@ -132,7 +132,7 @@ class SettingsWindow:
 
     def __createSaveRefreshRateButton(self) -> None:
         SAVE_REFRESH_RATE_BUTTON_TEXT: Final[str] = "Save"
-        SAVE_REFRESH_RATE_BUTTON_COLUMN: Final[int] = 8
+        SAVE_REFRESH_RATE_BUTTON_COLUMN: Final[int] = 14
 
         saveRefreshRateButton: Button = Button(self.__settingsWindow,
                                                text=SAVE_REFRESH_RATE_BUTTON_TEXT,
@@ -149,7 +149,7 @@ class SettingsWindow:
 
     def __createRestartWarningLabel(self, rowIndex: int) -> None:
         RESTART_WARNING_LABEL_TEXT: Final[str] = "Any changes made will be applied after restarting the program"
-        RESTART_WARNING_LABEL_COLUMN: Final[int] = 5
+        RESTART_WARNING_LABEL_COLUMN: Final[int] = 4
 
         restartWarningLabel: Label = Label(self.__settingsWindow,
                                            text=RESTART_WARNING_LABEL_TEXT,
