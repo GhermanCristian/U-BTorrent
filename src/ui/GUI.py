@@ -24,7 +24,7 @@ class GUI:
 
     def __createMainWindow(self) -> Tk:
         WINDOW_TITLE: Final[str] = "U-BTorrent"
-        MIN_WINDOW_WIDTH_IN_PIXELS: Final[int] = 960
+        MIN_WINDOW_WIDTH_IN_PIXELS: Final[int] = 1100
         MIN_WINDOW_HEIGHT_IN_PIXELS: Final[int] = 480
         APPLY_TO_ALL_WINDOWS: Final[bool] = True
 

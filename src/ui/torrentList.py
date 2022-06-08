@@ -139,6 +139,8 @@ class TorrentList:
                              command=lambda colName=columnName: self.__sortColumn(treeView, colName, False))
             treeView.column(columnName,
                             minwidth=MIN_COLUMN_WIDTH_IN_PIXELS,
+                            width=MIN_COLUMN_WIDTH_IN_PIXELS,
+                            stretch=False,
                             anchor=utilsGUI.CENTER_ANCHOR)
         for sessionMetrics in self.__getSessionMetrics():
             treeView.insert(self.ROOT_PARENT, tkinter.END, sessionMetrics.torrentName,
