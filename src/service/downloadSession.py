@@ -1,5 +1,4 @@
-import asyncio
-from typing import List, Final, Tuple
+from typing import List
 from bitarray import bitarray
 import utils
 from domain.block import Block
@@ -8,6 +7,7 @@ from domain.message.pieceMessage import PieceMessage
 from domain.message.requestMessage import RequestMessage
 from domain.peer import Peer
 from domain.piece import Piece
+from service.blockRequester import BlockRequester
 from service.pieceGenerator import PieceGenerator
 from service.sessionMetrics import SessionMetrics
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
@@ -19,20 +19,17 @@ class DownloadSession:
     def __init__(self, scanner: TorrentMetaInfoScanner):
         self.__scanner: TorrentMetaInfoScanner = scanner
         self.__pieces: List[Piece] = PieceGenerator(scanner).generatePiecesWithBlocks()
-        self.__downloadedPieces: bitarray = bitarray()
         self.__otherPeers: List[Peer] = []
-        self.__currentPieceIndex: int = 0
-        self.__currentBlockIndex: int = 0
         self.__torrentSaver: TorrentSaver = TorrentSaver(scanner)
         self.__torrentUploader: TorrentUploader = TorrentUploader(scanner)
         self.__sessionMetrics: SessionMetrics = SessionMetrics(scanner)
-        self.__isDownloadPaused: bool = False
+        self.__blockRequester: BlockRequester = BlockRequester(self.__pieces)
         self.__isUploadPaused: bool = False
-        self.__requestedBlockCount: int = 0
 
     def setPeerList(self, peerList: List[Peer]) -> None:
         self.__otherPeers.clear()
         self.__otherPeers.extend(peerList)
+        self.__blockRequester.setPeerList(peerList)
 
     def startDownload(self) -> None:
         self.__torrentSaver.start()
@@ -42,60 +39,8 @@ class DownloadSession:
         self.__sessionMetrics.start()
         self.__sessionMetrics.addDownloadedBytes(self.__scanner.getTotalContentSize())
 
-    def setDownloadedPieces(self, piecesAlreadyWrittenOnDisk: List[bool]) -> None:
-        self.__downloadedPieces.clear()
-        self.__downloadedPieces.extend(piecesAlreadyWrittenOnDisk)
-
-    def __isDownloaded(self) -> bool:
-        return all(self.__downloadedPieces)
-
-    """
-    Finds a peer which contains the current piece
-    @:return The peer which contains the piece, or None if there are no peers who own that piece
-    """
-    def __getPeerWithCurrentPiece(self) -> Peer | None:
-        # Here we can implement some prioritization algorithms based on download speed (distant future tho)
-        # At the moment it gets the first available one
-        for peer in self.__otherPeers:
-            if peer.hasActiveConnection() and not peer.isChokingMe and peer.amInterestedInIt and peer.availablePieces[self.__currentPieceIndex]:
-                return peer
-
-    """
-    Finds the next available block that can be requested and the peer which owns it
-    @:return A tuple of the block and the peer which owns it
-    """
-    def __determineNextBlockToRequest(self) -> Tuple[Block, Peer] | None:
-        while self.__currentPieceIndex < len(self.__pieces):
-            piece: Piece = self.__pieces[self.__currentPieceIndex]
-            if not piece.isDownloadComplete:
-                peerWithCurrentPiece: Peer | None = self.__getPeerWithCurrentPiece()
-                if peerWithCurrentPiece is not None:
-                    while self.__currentBlockIndex < len(piece.blocks):
-                        block: Block = piece.blocks[self.__currentBlockIndex]
-                        self.__currentBlockIndex += 1
-                        if not block.isComplete and block not in peerWithCurrentPiece.blocksRequestedFromPeer:
-                            return block, peerWithCurrentPiece
-            self.__currentPieceIndex += 1
-            self.__currentBlockIndex = 0
-        self.__currentPieceIndex, self.__currentBlockIndex = 0, 0
-
-    async def __requestNextBlock(self) -> None:
-        BLOCK_INDEX_IN_TUPLE: Final[int] = 0
-        PEER_INDEX_IN_TUPLE: Final[int] = 1
-
-        blockAndPeer: Tuple[Block, Peer] | None = self.__determineNextBlockToRequest()
-        if blockAndPeer is None:
-            return
-        block: Block = blockAndPeer[BLOCK_INDEX_IN_TUPLE]
-        peer: Peer = blockAndPeer[PEER_INDEX_IN_TUPLE]
-
-        await RequestMessage(block.pieceIndex, block.beginOffset, block.length).send(peer)
-        peer.blocksRequestedFromPeer.append(block)
-        self.__requestedBlockCount += 1
-
     async def __afterTorrentDownloadFinishes(self) -> None:
         self.__torrentSaver.setDownloadComplete()
-        await self.__cancelAllRequests()
         self.__torrentUploader.start()
 
     """This can be called anytime"""
@@ -104,21 +49,6 @@ class DownloadSession:
         self.__torrentSaver.stop()
         self.__torrentUploader.stop()
         await self.__cancelAllRequests()
-
-    async def requestBlocks(self) -> bool:
-        INTERVAL_BETWEEN_REQUEST_MESSAGES: Final[float] = 0.015  # seconds => ~66 requests / second
-        MAX_REQUESTED_BLOCK_COUNT: Final[int] = 2400
-
-        while not self.__isDownloadPaused:
-            await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
-            if self.__isDownloaded():
-                await self.__afterTorrentDownloadFinishes()
-                return True
-            while self.__requestedBlockCount >= MAX_REQUESTED_BLOCK_COUNT:
-                await asyncio.sleep(INTERVAL_BETWEEN_REQUEST_MESSAGES)
-            await self.__requestNextBlock()
-        await self.__cancelAllRequests()
-        return False
 
     """
     Sends CancelMessages to all peers to which a request has been made for a given block (excluding the peer which answered the request).
@@ -134,7 +64,7 @@ class DownloadSession:
                     if otherPeer != sender:
                         await CancelMessage(pieceIndex, beginOffset, otherPeer.blocksRequestedFromPeer[blockIndex].length).send(otherPeer)
                     otherPeer.blocksRequestedFromPeer.pop(blockIndex)
-                    self.__requestedBlockCount -= 1
+                    self.__blockRequester.decreaseRequestedBlockCount()
                     break
 
     async def __cancelAllRequests(self) -> None:
@@ -142,7 +72,13 @@ class DownloadSession:
             for block in otherPeer.blocksRequestedFromPeer:
                 await CancelMessage(block.pieceIndex, block.beginOffset, block.length).send(otherPeer)
             otherPeer.blocksRequestedFromPeer.clear()
-        self.__requestedBlockCount = 0
+
+    async def requestBlocks(self) -> bool:
+        isDownloadFinished: bool = await self.__blockRequester.requestBlocks()
+        if isDownloadFinished:
+            await self.__afterTorrentDownloadFinishes()
+        await self.__cancelAllRequests()
+        return isDownloadFinished
 
     async def receivePieceMessage(self, message: PieceMessage, sender: Peer) -> None:
         pieceIndex: int = utils.convert4ByteBigEndianToInteger(message.pieceIndex)
@@ -161,7 +97,7 @@ class DownloadSession:
         expectedPieceHash: bytes = self.__scanner.getPieceHash(pieceIndex)
         if actualPieceHash == expectedPieceHash:
             self.__torrentSaver.putPieceInQueue(piece)
-            self.__downloadedPieces[piece.index] = True
+            self.__blockRequester.markPieceAsDownloaded(piece.index)
         else:
             # there's no need to re-request this - the piece will not be marked as complete, so it will be "caught" in the next search loop of the download session
             piece.clear()
@@ -200,11 +136,11 @@ class DownloadSession:
 
     @property
     def isDownloadPaused(self) -> bool:
-        return self.__isDownloadPaused
+        return self.__blockRequester.isDownloadPaused
 
     @isDownloadPaused.setter
     def isDownloadPaused(self, newValue: bool) -> None:
-        self.__isDownloadPaused = newValue
+        self.__blockRequester.isDownloadPaused = newValue
 
     @property
     def isUploadPaused(self) -> bool:
@@ -216,4 +152,8 @@ class DownloadSession:
 
     @property
     def downloadedPieces(self) -> bitarray:
-        return self.__downloadedPieces
+        return self.__blockRequester.downloadedPieces
+
+    @downloadedPieces.setter
+    def downloadedPieces(self, newValue: List[bool]) -> None:
+        self.__blockRequester.setDownloadedPieces(newValue)

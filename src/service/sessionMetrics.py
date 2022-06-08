@@ -51,6 +51,8 @@ class SessionMetrics:
 
     @property
     def seedRatio(self) -> float:
+        if self.__totalDownloadedBytes == 0:
+            return 0.0
         return self.__totalUploadedBytes / self.__totalDownloadedBytes
 
     @property

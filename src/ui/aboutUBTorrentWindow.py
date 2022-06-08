@@ -7,7 +7,7 @@ class AboutUBTorrentWindow:
     NORMAL_FONT_SIZE: Final[int] = 14
     X_PADDING: Final[int] = 20
     Y_PADDING: Final[int] = 20
-    WINDOW_SIZE_IN_PIXELS: Final[int] = 330  # square window
+    WINDOW_SIZE_IN_PIXELS: Final[int] = 340  # square window
     CENTER_ANCHOR: Final[Literal["center"]] = "center"
 
     def __init__(self, mainWindow: Tk):
@@ -35,7 +35,7 @@ class AboutUBTorrentWindow:
         logoLabel.pack(side=TOP)
 
     def __displayContent(self) -> None:
-        content: Final[str] = """Why U-BTorrent ? Because it's simple.
+        content: Final[str] = """Why U-BTorrent ? Simple because it is.
 Est. 2022
 HAIDE U!"""
         Label(self.__aboutUBTorrentWindow,

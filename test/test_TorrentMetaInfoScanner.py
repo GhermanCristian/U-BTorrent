@@ -6,8 +6,8 @@ from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 
 
 class TestTorrentMetaInfoScanner(unittest.TestCase):
-    TORRENT_META_INFO_FILE_LOCATION: Final[str] = "..\\Resources\\Test\\NBALOGO_archive.torrent"
-    TORRENT_TEST_DOWNLOAD_LOCATION: Final[str] = "..\\Resources\\Test\\Downloads"
+    TORRENT_META_INFO_FILE_LOCATION: Final[str] = "Resources\\NBALOGO_archive.torrent"
+    TORRENT_TEST_DOWNLOAD_LOCATION: Final[str] = "Downloads"
     TORRENT_NAME: Final[str] = "NBALOGO"
 
     def setUp(self) -> None:

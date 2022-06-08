@@ -13,7 +13,7 @@ from service.downloadSession import DownloadSession
 from service.messageQueue import MessageQueue
 from service.messageWithLengthAndIDFactory import MessageWithLengthAndIDFactory
 from service.sessionMetrics import SessionMetrics
-from service.torrentChecker import TorrentChecker
+from service.torrentDiskIntegrityChecker import TorrentDiskIntegrityChecker
 from service.torrentMetaInfoScanner import TorrentMetaInfoScanner
 from service.trackerConnection import TrackerConnection
 
@@ -26,6 +26,8 @@ class ProcessSingleTorrent:
         self.__messageQueue: MessageQueue = MessageQueue(self.__downloadSession)
         self.__peerList: List[Peer] = []
         self.__peerDownloadingCoroutines: List[Coroutine] = []
+        self.__peerUploadingCoroutines: List[Coroutine] = []
+        self.__isDownloaded: bool = False
         # using this instead of the usual asyncio.run(), because of issues when calling create_task from another thread (e.g. from the GUI)
         self.__eventLoop: AbstractEventLoop = asyncio.new_event_loop()
 
@@ -155,11 +157,13 @@ class ProcessSingleTorrent:
         self.__downloadSession.setPeerList(self.__peerList)
         [peerDownloadingCoroutine.close() for peerDownloadingCoroutine in self.__peerDownloadingCoroutines]
         print("started uploading")
-        await asyncio.gather(*[self.__startConnectionToPeerForUpload(peer) for peer in self.__peerList])
+        self.__peerUploadingCoroutines.clear()
+        self.__peerUploadingCoroutines.extend([self.__startConnectionToPeerForUpload(peer) for peer in self.__peerList])
+        await asyncio.gather(*self.__peerUploadingCoroutines)
 
     async def __download(self) -> None:
-        isDownloaded: bool = await self.__downloadSession.requestBlocks()
-        if isDownloaded:
+        self.__isDownloaded = await self.__downloadSession.requestBlocks()
+        if self.__isDownloaded:
             await self.__upload()
         else:
             print("just paused")
@@ -175,9 +179,10 @@ class ProcessSingleTorrent:
 
     async def __startTorrentDownload(self) -> None:
         await self.__makeTrackerStartedRequest()  # need this even if it's already downloaded, because we need the host
-        isPieceWrittenOnDisk: List[bool] = TorrentChecker(self.__scanner).getPiecesWrittenOnDisk()
-        self.__downloadSession.setDownloadedPieces(isPieceWrittenOnDisk)
+        isPieceWrittenOnDisk: List[bool] = TorrentDiskIntegrityChecker(self.__scanner).getPiecesWrittenOnDisk()
+        self.__downloadSession.downloadedPieces = isPieceWrittenOnDisk
         if all(isPieceWrittenOnDisk):
+            self.__isDownloaded = True
             self.__downloadSession.startJustUpload()
             # don't call this in self.__upload(), because that point can also be reached after a regular download, therefore it may have already been called
             await self.__upload()
@@ -211,18 +216,30 @@ class ProcessSingleTorrent:
     def isUploadPaused(self) -> bool:
         return self.__downloadSession.isUploadPaused
 
+    @property
+    def isDownloaded(self) -> bool:
+        return self.__isDownloaded
+
     def pauseDownload(self) -> None:
-        self.__downloadSession.isDownloadPaused = True
+        if not self.__isDownloaded:
+            self.__downloadSession.isDownloadPaused = True
 
     def resumeDownload(self) -> None:
-        self.__downloadSession.isDownloadPaused = False
-        self.__eventLoop.create_task(self.__download())
+        # no use in resuming an already finished download
+        if not self.__isDownloaded:
+            self.__downloadSession.isDownloadPaused = False
+            self.__eventLoop.create_task(self.__download())
 
     def pauseUpload(self) -> None:
-        self.__downloadSession.isUploadPaused = True
+        # pausing / resuming uploading doesn't make sense if the upload didn't start in the first place
+        if self.__isDownloaded:
+            self.__downloadSession.isUploadPaused = True
+            [peerUploadingCoroutine.close() for peerUploadingCoroutine in self.__peerUploadingCoroutines]
 
     def resumeUpload(self) -> None:
-        self.__downloadSession.isUploadPaused = False
+        if self.__isDownloaded:
+            self.__downloadSession.isUploadPaused = False
+            self.__eventLoop.create_task(self.__upload())
 
     def __eq__(self, other) -> bool:
         return isinstance(other, self.__class__) and self.__scanner.infoHash == other.__scanner.infoHash

@@ -40,7 +40,8 @@ class ContextMenu:
     def __getCommandPauseDownloadStateFromRowID(self, rowID: str, commandLabel: str) -> Literal["normal", "disabled"]:
         singleTorrentProcessor: ProcessSingleTorrent = self.__getSingleTorrentProcessorByTorrentName(rowID)
 
-        if (commandLabel == self.PAUSE_DOWNLOAD_COMMAND_LABEL and singleTorrentProcessor.isDownloadPaused) or \
+        if singleTorrentProcessor.isDownloaded or \
+            (commandLabel == self.PAUSE_DOWNLOAD_COMMAND_LABEL and singleTorrentProcessor.isDownloadPaused) or \
                 (commandLabel == self.RESUME_DOWNLOAD_COMMAND_LABEL and not singleTorrentProcessor.isDownloadPaused):
             return self.DISABLED_COMMAND_STATE
         return self.NORMAL_COMMAND_STATE
@@ -48,7 +49,8 @@ class ContextMenu:
     def __getCommandPauseUploadStateFromRowID(self, rowID: str, commandLabel: str) -> Literal["normal", "disabled"]:
         singleTorrentProcessor: ProcessSingleTorrent = self.__getSingleTorrentProcessorByTorrentName(rowID)
 
-        if (commandLabel == self.PAUSE_UPLOAD_COMMAND_LABEL and singleTorrentProcessor.isUploadPaused) or \
+        if not singleTorrentProcessor.isDownloaded or \
+            (commandLabel == self.PAUSE_UPLOAD_COMMAND_LABEL and singleTorrentProcessor.isUploadPaused) or \
                 (commandLabel == self.RESUME_UPLOAD_COMMAND_LABEL and not singleTorrentProcessor.isUploadPaused):
             return self.DISABLED_COMMAND_STATE
         return self.NORMAL_COMMAND_STATE
