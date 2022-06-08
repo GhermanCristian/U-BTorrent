@@ -1,7 +1,7 @@
-import tkinter
+﻿import tkinter
 from tkinter import Tk, YES, BOTH
 from tkinter.ttk import Treeview, Style
-from typing import List, Final, Tuple, Dict
+from typing import List, Final, Dict
 import utils
 from service.processSingleTorrent import ProcessSingleTorrent
 from service.sessionMetrics import SessionMetrics
@@ -67,8 +67,8 @@ class TorrentList:
     def __getSessionMetrics(self) -> List[SessionMetrics]:
         return [singleTorrentProcessor.sessionMetrics for singleTorrentProcessor in self.__singleTorrentProcessors]
 
-    def __getValueFromSessionMetrics(self, sessionMetrics: SessionMetrics, columnIdentifier: str) -> int | float:
-        IDENTIFIER_TO_FIELD: Final[Dict[str, int | float]] = {
+    def __getValueFromSessionMetrics(self, sessionMetrics: SessionMetrics, columnIdentifier: str):
+        IDENTIFIER_TO_FIELD = {
             self.COMPLETED_RATIO_COLUMN_NAME: sessionMetrics.completionPercentage,
             self.REMAINING_SIZE_COLUMN_NAME: sessionMetrics.remainingBytes,
             self.TOTAL_SIZE_COLUMN_NAME: sessionMetrics.totalSize,
@@ -81,12 +81,12 @@ class TorrentList:
         }
         return IDENTIFIER_TO_FIELD[columnIdentifier]
 
-    def __getValuesAndRowNamesForColumn(self, columnName: str) -> List[Tuple[int | float, str]]:
+    def __getValuesAndRowNamesForColumn(self, columnName: str):
         # torrent name = row name
         return [(self.__getValueFromSessionMetrics(sessionMetrics, columnName), sessionMetrics.torrentName) for sessionMetrics in self.__getSessionMetrics()]
 
     def __sortColumn(self, treeView: Treeview, columnName: str, reverse: bool) -> None:
-        valuesWithRowNames: List[Tuple[int | float, str]] = self.__getValuesAndRowNamesForColumn(columnName)
+        valuesWithRowNames = self.__getValuesAndRowNamesForColumn(columnName)
         valuesWithRowNames.sort(reverse=reverse)
         for index, (val, rowName) in enumerate(valuesWithRowNames):
             treeView.move(rowName, self.ROOT_PARENT, index)

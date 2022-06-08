@@ -15,8 +15,8 @@ class Peer:
         self.__amInterestedInIt: bool = False
         self.__isInterestedInMe: bool = False
         self.__availablePieces: bitarray = bitarray()
-        self.__streamReader: StreamReader | None = None
-        self.__streamWriter: StreamWriter | None = None
+        self.__streamReader = None
+        self.__streamWriter = None
         self.__blocksRequestedFromPeer: List[Block] = []
         self.__blocksRequestedByPeer: List[Block] = []
 

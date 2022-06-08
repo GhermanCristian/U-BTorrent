@@ -11,7 +11,7 @@ class TorrentSaver:
     def __init__(self, scanner: TorrentMetaInfoScanner):
         self.__torrentName: str = scanner.torrentName
         self.__torrentFiles: List[File] = scanner.files
-        self.__piecesQueue: asyncio.Queue[Piece] = asyncio.Queue()
+        self.__piecesQueue: asyncio.Queue[Piece]
         self.__regularPieceLength: int = scanner.regularPieceLength
         self.__finalPieceLength: int = scanner.finalPieceLength
         self.__pieceCount: int = scanner.pieceCount
@@ -19,6 +19,7 @@ class TorrentSaver:
         self.__forceStop: bool = False
 
     def start(self) -> None:
+        self.__piecesQueue = asyncio.Queue()
         task: Task = asyncio.create_task(self.__run())  # store the var reference to avoid the task disappearing mid-execution
 
     def stop(self) -> None:
@@ -65,7 +66,7 @@ class TorrentSaver:
                 fileListWithOffsets.append((file, 0, pieceLength + currentFileStartOffset - pieceEndOffset, pieceEndOffset - currentFileStartOffset))
 
             currentFileStartOffset = currentFileEndOffset
-            
+
         return fileListWithOffsets
 
     """

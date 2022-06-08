@@ -10,10 +10,11 @@ from service.messageProcessor import MessageProcessor
 class MessageQueue:
     def __init__(self, downloadSession: DownloadSession):
         self.__downloadSession: DownloadSession = downloadSession
-        self.__messagesQueue: asyncio.Queue[Tuple[Message, Peer]] = asyncio.Queue()
+        self.__messagesQueue: asyncio.Queue[Tuple[Message, Peer]]
         self.__running: bool = True
 
     def start(self) -> None:
+        self.__messagesQueue = asyncio.Queue()
         task: Task = asyncio.create_task(self.__run())  # store the var reference to avoid the task disappearing mid-execution
 
     async def __run(self) -> None:

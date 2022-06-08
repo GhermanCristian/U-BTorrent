@@ -9,7 +9,7 @@ class TorrentDiskLoader:
     def __init__(self, scanner: TorrentMetaInfoScanner):
         self.__scanner: TorrentMetaInfoScanner = scanner
 
-    def __readFileSection(self, file: File, fileStartOffset: int, sectionLength: int) -> bytes | None:
+    def __readFileSection(self, file: File, fileStartOffset: int, sectionLength: int):
         try:
             fileDescriptor: int = os.open(file.path, os.O_RDONLY | os.O_BINARY)
         except Exception:
@@ -69,7 +69,7 @@ class TorrentDiskLoader:
         dataReadSoFar: bytes = b""
         for file, fileStartOffset, pieceSectionLength in fileListAndOffsets:
             for _ in range(READING_ATTEMPTS):
-                readData: bytes | None = self.__readFileSection(file, fileStartOffset, pieceSectionLength)
+                readData = self.__readFileSection(file, fileStartOffset, pieceSectionLength)
                 if readData is not None:
                     dataReadSoFar += readData
                     break

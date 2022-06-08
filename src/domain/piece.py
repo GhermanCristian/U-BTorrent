@@ -14,7 +14,7 @@ class Piece:
     def clear(self) -> None:
         [block.clear() for block in self.__blocks]
 
-    def getBlockStartingAtOffset(self, beginOffset: int) -> Block | None:
+    def getBlockStartingAtOffset(self, beginOffset: int):
         blockStartingAtOffset: List[Block] = [block for block in self.__blocks if block.beginOffset == beginOffset]
         if len(blockStartingAtOffset) != 1:
             return None
@@ -26,7 +26,7 @@ class Piece:
     @:param data - the data that is being written
     """
     def writeDataToBlock(self, beginOffset: int, data: bytes) -> None:
-        blockStartingAtOffset: Block | None = self.getBlockStartingAtOffset(beginOffset)
+        blockStartingAtOffset = self.getBlockStartingAtOffset(beginOffset)
         if blockStartingAtOffset is not None:
             blockStartingAtOffset.writeData(data)
 

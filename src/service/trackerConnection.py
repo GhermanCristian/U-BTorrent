@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Final, Dict, Any, Tuple, Callable
+from typing import List, Final, Dict, Any, Tuple
 import requests
 from requests import Response
 import utils
@@ -23,7 +23,7 @@ class TrackerConnection:
         URL: Final[str] = 'https://api.ipify.org'
         return requests.get(URL).content.decode('utf8')
 
-    async def __getPeers(self, payload: Dict[str, Any]) -> List[Peer] | None:
+    async def __getPeers(self, payload: Dict[str, Any]):
         REQUEST_ATTEMPT_TIMEOUT: Final[int] = 30  # seconds
         WAITING_TIME_BETWEEN_GET_PEER_REQUESTS: Final[int] = 1  # seconds
         ATTEMPTS_TO_GET_PEERS: Final[int] = 10
@@ -40,7 +40,7 @@ class TrackerConnection:
                     return peerList
             await asyncio.sleep(WAITING_TIME_BETWEEN_GET_PEER_REQUESTS)
 
-    def __getStartedPayloadForPort(self, port: int) -> Dict[str, bytes | str | int]:
+    def __getStartedPayloadForPort(self, port: int):
         return {
             "info_hash": self.__infoHash,
             "peer_id": utils.PEER_ID,
@@ -52,7 +52,7 @@ class TrackerConnection:
             "event": "started"
         }
 
-    def __getFinishedPayloadForPort(self, port: int) -> Dict[str, bytes | str | int]:
+    def __getFinishedPayloadForPort(self, port: int):
         return {
             "info_hash": self.__infoHash,
             "peer_id": utils.PEER_ID,
@@ -64,14 +64,14 @@ class TrackerConnection:
             "event": "finished"
         }
 
-    async def __makeRequest(self, payloadGetter: Callable[[int], Dict[str, bytes | str | int]]) -> Tuple[List[Peer], int]:
+    async def __makeRequest(self, payloadGetter) -> Tuple[List[Peer], int]:
         ATTEMPTS_TO_CONNECT_TO_TRACKER: Final[int] = 3
 
         currentPort: int = self.FIRST_AVAILABLE_PORT
         while currentPort <= self.LAST_AVAILABLE_PORT:
             for attempt in range(ATTEMPTS_TO_CONNECT_TO_TRACKER):
                 try:
-                    peerList: List[Peer] | None = await self.__getPeers(payloadGetter(currentPort))
+                    peerList = await self.__getPeers(payloadGetter(currentPort))
                     if peerList is not None:
                         return peerList, currentPort
                 except Exception as e:

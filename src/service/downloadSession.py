@@ -1,7 +1,6 @@
 from typing import List
 from bitarray import bitarray
 import utils
-from domain.block import Block
 from domain.message.cancelMessage import CancelMessage
 from domain.message.pieceMessage import PieceMessage
 from domain.message.requestMessage import RequestMessage
@@ -110,7 +109,7 @@ class DownloadSession:
         blockLength: int = utils.convert4ByteBigEndianToInteger(message.blockLength)
         if blockLength > utils.BLOCK_REQUEST_SIZE:
             return
-        blockWithoutData: Block | None = self.__pieces[pieceIndex].getBlockStartingAtOffset(utils.convert4ByteBigEndianToInteger(message.beginOffset))
+        blockWithoutData = self.__pieces[pieceIndex].getBlockStartingAtOffset(utils.convert4ByteBigEndianToInteger(message.beginOffset))
         if blockWithoutData is None:
             return
         if blockWithoutData not in sender.blocksRequestedByPeer:
@@ -124,7 +123,7 @@ class DownloadSession:
         blockLength: int = utils.convert4ByteBigEndianToInteger(message.blockLength)
         if blockLength > utils.BLOCK_REQUEST_SIZE:
             return
-        blockWithoutData: Block | None = self.__pieces[pieceIndex].getBlockStartingAtOffset(utils.convert4ByteBigEndianToInteger(message.beginOffset))
+        blockWithoutData = self.__pieces[pieceIndex].getBlockStartingAtOffset(utils.convert4ByteBigEndianToInteger(message.beginOffset))
         if blockWithoutData is None:
             return
         if blockWithoutData in sender.blocksRequestedByPeer:

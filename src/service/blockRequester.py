@@ -1,5 +1,5 @@
 import asyncio
-from typing import Final, List, Tuple
+from typing import Final, List
 from bitarray import bitarray
 from domain.block import Block
 from domain.message.requestMessage import RequestMessage
@@ -35,7 +35,7 @@ class BlockRequester:
     Finds a peer which contains the current piece
     @:return The peer which contains the piece, or None if there are no peers who own that piece
     """
-    def __getPeerWithCurrentPiece(self) -> Peer | None:
+    def __getPeerWithCurrentPiece(self):
         # Here we can implement some prioritization algorithms based on download speed (distant future tho)
         # At the moment it gets the first available one
         for peer in self.__peerList:
@@ -46,11 +46,11 @@ class BlockRequester:
     Finds the next available block that can be requested and the peer which owns it
     @:return A tuple of the block and the peer which owns it
     """
-    def __determineNextBlockToRequest(self) -> Tuple[Block, Peer] | None:
+    def __determineNextBlockToRequest(self):
         while self.__currentPieceIndex < len(self.__pieces):
             piece: Piece = self.__pieces[self.__currentPieceIndex]
             if not piece.isDownloadComplete:
-                peerWithCurrentPiece: Peer | None = self.__getPeerWithCurrentPiece()
+                peerWithCurrentPiece = self.__getPeerWithCurrentPiece()
                 if peerWithCurrentPiece is not None:
                     while self.__currentBlockIndex < len(piece.blocks):
                         block: Block = piece.blocks[self.__currentBlockIndex]
@@ -65,7 +65,7 @@ class BlockRequester:
         BLOCK_INDEX_IN_TUPLE: Final[int] = 0
         PEER_INDEX_IN_TUPLE: Final[int] = 1
 
-        blockAndPeer: Tuple[Block, Peer] | None = self.__determineNextBlockToRequest()
+        blockAndPeer = self.__determineNextBlockToRequest()
         if blockAndPeer is None:
             return
         block: Block = blockAndPeer[BLOCK_INDEX_IN_TUPLE]

@@ -12,11 +12,12 @@ class TorrentUploader:
     def __init__(self, scanner: TorrentMetaInfoScanner):
         self.__scanner: TorrentMetaInfoScanner = scanner
         self.__torrentDiskLoader: TorrentDiskLoader = TorrentDiskLoader(scanner)
-        self.__blockAndPeerQueue: asyncio.Queue[Tuple[Block, Peer]] = asyncio.Queue()
+        self.__blockAndPeerQueue: asyncio.Queue[Tuple[Block, Peer]]
         self.__running: bool = False
 
     def start(self) -> None:
         self.__running = True
+        self.__blockAndPeerQueue = asyncio.Queue()
         task: Task = asyncio.create_task(self.__run())  # store the var reference to avoid the task disappearing mid-execution
 
     """This can be called even if the uploader was not started yet"""
