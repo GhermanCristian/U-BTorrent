@@ -75,7 +75,7 @@ class TrackerConnection:
                     if peerList is not None:
                         return peerList, currentPort
                 except Exception as e:
-                    print("Error - ", e)
+                    pass  # TODO - log the exception
             currentPort += 1
         # TODO - if the connection cannot be established with the current tracker address, try the others from the announceURL list
 

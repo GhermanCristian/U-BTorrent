@@ -12,7 +12,7 @@ class Message(ABC):  # ABC = abstract base class
             otherPeer.streamWriter.write(self.getMessageContent())
             await otherPeer.streamWriter.drain()
         except Exception as e:
-            print(e)
+            pass  # TODO - log the exception
 
     def __hash__(self) -> int:
         return hash(self.getMessageContent())

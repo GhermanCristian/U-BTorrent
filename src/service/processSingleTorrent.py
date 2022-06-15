@@ -97,8 +97,7 @@ class ProcessSingleTorrent:
         try:
             lengthPrefix: bytes = await self.__attemptToReadBytes(sender.streamReader, LENGTH_PREFIX_LENGTH)
         except ConnectionError as e:
-            print(e)
-            return False
+            return False  # TODO - log the exception
 
         if not lengthPrefix or lengthPrefix == utils.convertIntegerTo4ByteBigEndian(KeepAliveMessage.LENGTH_PREFIX):
             return True
@@ -112,7 +111,7 @@ class ProcessSingleTorrent:
             message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
             self.__messageQueue.putMessageInQueue(message, sender)
         except Exception as e:
-            print(e)
+            pass  # TODO - log the exception
         return True
 
     async def __exchangeMessagesWithPeer(self, otherPeer: Peer) -> None:
@@ -156,7 +155,6 @@ class ProcessSingleTorrent:
         await self.__addNewPeers(newPeersAndPort[0])
         self.__downloadSession.setPeerList(self.__peerList)
         [peerDownloadingCoroutine.close() for peerDownloadingCoroutine in self.__peerDownloadingCoroutines]
-        print("started uploading")
         self.__peerUploadingCoroutines.clear()
         self.__peerUploadingCoroutines.extend([self.__startConnectionToPeerForUpload(peer) for peer in self.__peerList])
         await asyncio.gather(*self.__peerUploadingCoroutines)
@@ -166,7 +164,7 @@ class ProcessSingleTorrent:
         if self.__isDownloaded:
             await self.__upload()
         else:
-            print("just paused")
+            pass  # just paused
 
     async def __stop(self) -> None:
         self.__messageQueue.running = False
