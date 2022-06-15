@@ -25,9 +25,8 @@ class TorrentDiskLoader:
         os.close(fileDescriptor)
         return readData
 
-    def __getFileListAndOffsets(self, entityStartOffset: int, entityEndOffset: int, entityLength: int) -> List[Tuple[File, int, int]]:
-        # file offset, piece start, piece section length
-        fileListWithOffsets: List[Tuple[File, int, int]] = []
+    def __getFilesWhichContainEntity(self, entityStartOffset: int, entityEndOffset: int, entityLength: int) -> List[Tuple[File, int, int]]:
+        fileListWithOffsets: List[Tuple[File, int, int]] = []  # file, file start offset, entity length in file
         currentFileStartOffset: int = 0
 
         for file in self.__scanner.files:
@@ -53,7 +52,7 @@ class TorrentDiskLoader:
         if pieceIndex > 0:
             blockStartOffset += (pieceIndex - 1) * self.__scanner.regularPieceLength
         blockEndOffset: int = blockStartOffset + blockWithoutData.length
-        return self.__getFileListAndOffsets(blockStartOffset, blockEndOffset, blockWithoutData.length)
+        return self.__getFilesWhichContainEntity(blockStartOffset, blockEndOffset, blockWithoutData.length)
 
     def __determineFilesWhichContainPiece(self, pieceIndex: int) -> List[Tuple[File, int, int]]:
         pieceLength: int = self.__scanner.regularPieceLength
@@ -61,15 +60,15 @@ class TorrentDiskLoader:
             pieceLength = self.__scanner.finalPieceLength
         pieceStartOffset: int = pieceIndex * self.__scanner.regularPieceLength
         pieceEndOffset: int = pieceStartOffset + pieceLength
-        return self.__getFileListAndOffsets(pieceStartOffset, pieceEndOffset, pieceLength)
+        return self.__getFilesWhichContainEntity(pieceStartOffset, pieceEndOffset, pieceLength)
 
     def __getDataForFileListAndOffsets(self, fileListAndOffsets: List[Tuple[File, int, int]]) -> bytes:
         READING_ATTEMPTS: Final[int] = 2
 
         dataReadSoFar: bytes = b""
-        for file, fileStartOffset, pieceSectionLength in fileListAndOffsets:
+        for file, fileStartOffset, entitySectionLength in fileListAndOffsets:
             for _ in range(READING_ATTEMPTS):
-                readData: bytes | None = self.__readFileSection(file, fileStartOffset, pieceSectionLength)
+                readData: bytes | None = self.__readFileSection(file, fileStartOffset, entitySectionLength)
                 if readData is not None:
                     dataReadSoFar += readData
                     break
