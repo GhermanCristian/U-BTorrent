@@ -22,11 +22,10 @@ class TimeMetrics:
         self.__downloading = False
         self.__uploading = False
 
-    def setDownloadComplete(self) -> None:
-        self.__downloading = False
-
     def setUploadStarted(self) -> None:
+        self.__downloading = False
         self.__downloadSpeed = 0.0
+        self.__refreshDownloadValues()
         self.__uploading = True
 
     @property
@@ -65,7 +64,6 @@ class TimeMetrics:
     def __refreshUploadValues(self) -> None:
         self.__elapsedTime += self.SLEEP_INTERVAL_IN_SECONDS
         self.__uploadSpeed = self.__uploadedBytesLastInterval / self.SLEEP_INTERVAL_IN_SECONDS
-        print(self.__uploadSpeed)
         self.__uploadedBytesLastInterval = 0
 
     async def __run(self) -> None:

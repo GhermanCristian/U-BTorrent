@@ -25,6 +25,9 @@ class SessionMetrics:
     def stopTimer(self) -> None:
         self.__timeMetrics.stopTimer()
 
+    def setUploadStarted(self) -> None:
+        self.__timeMetrics.setUploadStarted()
+
     @property
     def torrentName(self) -> str:
         return self.__torrentName

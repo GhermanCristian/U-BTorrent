@@ -37,9 +37,11 @@ class DownloadSession:
 
     def startJustUpload(self) -> None:
         self.__sessionMetrics.start()
+        self.__sessionMetrics.setUploadStarted()
         self.__sessionMetrics.addDownloadedBytes(self.__scanner.getTotalContentSize())
 
     async def __afterTorrentDownloadFinishes(self) -> None:
+        self.__sessionMetrics.setUploadStarted()
         self.__torrentSaver.setDownloadComplete()
         self.__torrentUploader.start()
 
