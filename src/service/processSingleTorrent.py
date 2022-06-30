@@ -97,8 +97,7 @@ class ProcessSingleTorrent:
         try:
             lengthPrefix: bytes = await self.__attemptToReadBytes(sender.streamReader, LENGTH_PREFIX_LENGTH)
         except ConnectionError as e:
-            print(e)
-            return False
+            return False  # TODO - log the exception
 
         if not lengthPrefix or lengthPrefix == utils.convertIntegerTo4ByteBigEndian(KeepAliveMessage.LENGTH_PREFIX):
             return True
@@ -112,7 +111,7 @@ class ProcessSingleTorrent:
             message: MessageWithLengthAndID = MessageWithLengthAndIDFactory.getMessageFromIDAndPayload(messageID, payload)
             self.__messageQueue.putMessageInQueue(message, sender)
         except Exception as e:
-            print(e)
+            pass  # TODO - log the exception
         return True
 
     async def __exchangeMessagesWithPeer(self, otherPeer: Peer) -> None:
@@ -156,7 +155,6 @@ class ProcessSingleTorrent:
         await self.__addNewPeers(newPeersAndPort[0])
         self.__downloadSession.setPeerList(self.__peerList)
         [peerDownloadingCoroutine.close() for peerDownloadingCoroutine in self.__peerDownloadingCoroutines]
-        print("started uploading")
         self.__peerUploadingCoroutines.clear()
         self.__peerUploadingCoroutines.extend([self.__startConnectionToPeerForUpload(peer) for peer in self.__peerList])
         await asyncio.gather(*self.__peerUploadingCoroutines)
@@ -166,7 +164,7 @@ class ProcessSingleTorrent:
         if self.__isDownloaded:
             await self.__upload()
         else:
-            print("just paused")
+            pass  # just paused
 
     async def __stop(self) -> None:
         self.__messageQueue.running = False
@@ -178,31 +176,32 @@ class ProcessSingleTorrent:
         self.__eventLoop.create_task(self.__stop())
 
     async def __startTorrentDownload(self) -> None:
+        self.__downloadSession.setPeerList(self.__peerList)
+        self.__downloadSession.startDownload()
+        self.__messageQueue.start()
+        self.__peerDownloadingCoroutines.extend([self.__startConnectionToPeerForDownload(otherPeer) for otherPeer in self.__peerList])
+        coroutineList: List[Coroutine] = []
+        coroutineList.extend(self.__peerDownloadingCoroutines)
+        coroutineList.append(self.__download())
+        await asyncio.gather(*coroutineList)
+        self.stop()  # "natural" stop
+
+    async def __attemptTorrentDownload(self) -> None:
         await self.__makeTrackerStartedRequest()  # need this even if it's already downloaded, because we need the host
         isPieceWrittenOnDisk: List[bool] = TorrentDiskIntegrityChecker(self.__scanner).getPiecesWrittenOnDisk()
         self.__downloadSession.downloadedPieces = isPieceWrittenOnDisk
         if all(isPieceWrittenOnDisk):
             self.__isDownloaded = True
-            self.__downloadSession.startJustUpload()
-            # don't call this in self.__upload(), because that point can also be reached after a regular download, therefore it may have already been called
+            self.__downloadSession.startJustUpload()  # don't call this in self.__upload(), because that point can also be reached after a regular download, therefore it may have already been called
             await self.__upload()
-            return
 
-        if self.__peerList:
-            self.__downloadSession.setPeerList(self.__peerList)
-            self.__downloadSession.startDownload()
-            self.__messageQueue.start()
-            self.__peerDownloadingCoroutines.extend([self.__startConnectionToPeerForDownload(otherPeer) for otherPeer in self.__peerList])
-            coroutineList: List[Coroutine] = []
-            coroutineList.extend(self.__peerDownloadingCoroutines)
-            coroutineList.append(self.__download())
-            await asyncio.gather(*coroutineList)
-            self.stop()  # "natural" stop
+        elif self.__peerList:
+            await self.__startTorrentDownload()
 
     def run(self) -> None:
         events.set_event_loop(self.__eventLoop)
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # due to issues with closing the event loop on Windows
-        self.__eventLoop.run_until_complete(self.__startTorrentDownload())
+        self.__eventLoop.run_until_complete(self.__attemptTorrentDownload())
 
     @property
     def sessionMetrics(self) -> SessionMetrics:

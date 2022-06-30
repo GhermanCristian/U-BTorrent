@@ -97,7 +97,7 @@ class Peer:
             try:
                 await utils.closeConnection((self.__streamReader, self.__streamWriter))
             except Exception as e:
-                print(e)
+                pass  # TODO - log the exception
         self.__streamReader, self.__streamWriter = None, None
 
     def hasActiveConnection(self) -> bool:
